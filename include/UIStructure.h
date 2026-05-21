@@ -7,19 +7,29 @@
 
 namespace lui {
     namespace scr {
-        class Screen{};
+        class Screen {
+
+        };
     }
     namespace app {
-        class Application{};
+        class Application {
+
+        };
     }
     namespace pge {
-        class Page{};
+        class Page {
+
+        };
     }
     namespace blk {
-        class Block{};
+        class Block {
+
+        };
     }
     namespace ele {
-        class Element{};
+        class Element {
+
+        };
     }
 }
 

@@ -15,8 +15,8 @@ namespace lui {
             double swtich_degree;
         public:
             bool getKB(uint16_t no) {return keyboard_status[no];}
-            double getSW(){return swich_degree;}
-            virtual refreshStatus() = 0;
+            double getSW(){return swtich_degree;}
+            virtual void refreshStatus() = 0;
         };
     }
 }
