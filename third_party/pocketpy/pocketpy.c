@@ -13132,7 +13132,7 @@ void METHOD(clear)(NAME* self) { c11_vector__clear(self); }
 #include <stddef.h>
 
 #if defined (_WIN32) || defined (_WIN64)
-#include <WinSock2.h>
+#include <winsock2.h>
 #include <ws2tcpip.h>
 typedef SOCKET socket_fd;
 #else

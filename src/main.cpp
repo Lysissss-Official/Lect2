@@ -7,8 +7,10 @@
 //
 
 #include <iostream>
-#include "include/easyx/easyx.h"
-#include "include/easyx/graphics.h"
+
+#include "easyx.h"
+#include "graphics.h"
+#include "pocketpy.h"
 
 int main() {
     initgraph(640, 480);
