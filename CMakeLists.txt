@@ -18,6 +18,9 @@ add_executable(ApsisUI2
         include/lui/platform/linux7/UITransorLinux7.h
         include/lui/theme/UIRenderApsisUI2.h
         apps/demo_app.h
+        include/lui/extension/font/font_20.h
+        include/lui/extension/font/UIFont.h
+        include/lui/extension/font/FontBase.h
 )
 
 target_include_directories(ApsisUI2 PRIVATE

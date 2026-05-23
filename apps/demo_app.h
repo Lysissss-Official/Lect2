@@ -1,7 +1,6 @@
 //
-// Demo application for ApsisUI II — LectOS 2
-// Demonstrates page layout, scrollable content, focus navigation,
-// and animated focus transitions.
+// ApsisUI II — LectOS 2 演示应用
+// 展示页面布局、滚动内容、焦点导航和动画焦点过渡。
 //
 
 #ifndef APSISUI2_DEMO_APP_H
@@ -20,6 +19,7 @@
 #include "../include/lui/platform/linux7/UICtrllerLinux7.h"
 #include "../include/lui/platform/linux7/UITransorLinux7.h"
 #include "../include/lui/theme/UIRenderApsisUI2.h"
+#include "../include/lui/extension/font/font_20.h"
 
 using namespace lui;
 
@@ -41,6 +41,9 @@ public:
 
         buildPage();
         demo_page.updatePhysical(scr->width, scr->height);
+
+        auto* theme_r = dynamic_cast<render::UIRenderApsisUI2*>(ren);
+        if (theme_r) theme_r->setFont(&lui::ext::font::f20);
     }
 
     void app_main() override {
@@ -49,7 +52,7 @@ public:
         using clock = std::chrono::steady_clock;
         auto last_input = clock::now();
 
-        // Continuous render loop for smooth animation
+        // 持续渲染循环以保证动画流畅
         while (true) {
             controller->refreshStatus();
 
@@ -74,7 +77,7 @@ public:
                 if (moved) last_input = now;
             }
 
-            // Render every frame so animation interpolates smoothly
+            // 逐帧渲染，确保动画插值平滑
             BeginBatchDraw();
             renderer->renderPage(&demo_page);
             FlushBatchDraw();
@@ -90,7 +93,7 @@ private:
         float y = 5.0f;
 
         // ============================================================
-        // Block 1 — Header (always visible, top of page)
+        // 区块 1 — 页眉（始终可见，页面顶部）
         // ============================================================
         {
             blk::Block header;
@@ -109,7 +112,7 @@ private:
         }
 
         // ============================================================
-        // Block 2 — Quick actions (3-column button grid)
+        // 区块 2 — 快捷操作（三列按钮网格）
         // ============================================================
         {
             blk::Block actions;
@@ -146,7 +149,7 @@ private:
         }
 
         // ============================================================
-        // Block 3 — Data panel (scrolls into view as you go down)
+        // 区块 3 — 数据面板（向下滚动时进入视野）
         // ============================================================
         {
             blk::Block data;
@@ -177,7 +180,7 @@ private:
         }
 
         // ============================================================
-        // Block 4 — Calibration controls (scrolls into view)
+        // 区块 4 — 校准控件（滚动进入视野）
         // ============================================================
         {
             blk::Block calib;
@@ -203,7 +206,7 @@ private:
         }
 
         // ============================================================
-        // Block 5 — Diagnostics log (long list; extends page well down)
+        // 区块 5 — 诊断日志（长列表；大幅延伸页面高度）
         // ============================================================
         {
             blk::Block diag;
@@ -232,7 +235,7 @@ private:
         }
 
         // ============================================================
-        // Block 6 — Footer (far below; requires scrolling)
+        // 区块 6 — 页脚（远在下方；需滚动查看）
         // ============================================================
         {
             blk::Block footer;

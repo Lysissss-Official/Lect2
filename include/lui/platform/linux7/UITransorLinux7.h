@@ -17,12 +17,12 @@ namespace lui {
 
         class UITransorLinux7 : public TranslatorService {
         public:
-            void drawPixelCmd(uint16_t x, uint16_t y, uint16_t color) override {
+            void drawPixelCmd(uint16_t x, uint16_t y, uint32_t color) override {
                 putpixel(static_cast<int>(x), static_cast<int>(y),
                          static_cast<COLORREF>(color));
             }
 
-            void drawFontCmd(uint16_t x, uint16_t y, uint16_t color,
+            void drawFontCmd(uint16_t x, uint16_t y, uint32_t color,
                              uint16_t font_typ, uint16_t unicode) override {
                 settextcolor(static_cast<COLORREF>(color));
                 // font_typ: 0=small, 1=medium, 2=large
@@ -40,7 +40,7 @@ namespace lui {
             }
 
             void drawLineCmd(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
-                             uint16_t color) override {
+                             uint32_t color) override {
                 setlinecolor(static_cast<COLORREF>(color));
                 line(static_cast<int>(x1), static_cast<int>(y1),
                      static_cast<int>(x2), static_cast<int>(y2));
