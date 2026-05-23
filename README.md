@@ -1,3 +1,5 @@
+<a name="readme-top"></a>
+
 <p align="center">
   <img src="./assets/lect_dark.svg" width="180" align="middle">
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -18,13 +20,13 @@
   <img src="https://img.shields.io/badge/ESP32--S3-FreeRTOS-green?style=for-the-badge">
 </p>
 
----
-
 <p align="center">
   A rect-derived operating framework for CalXis, an ESP32-S3 Based Axis Calculator.
   <br>
   Built around mechanical-axis computation, binary states, and a post-industrial visual language.
 </p>
+
+---
 
 ## Architecture
 
@@ -108,6 +110,8 @@ cmake -S . -B cmake-build-debug-mingw/ -G "MinGW Makefiles"
 cmake --build cmake-build-debug-mingw/
 ```
 
+---
+
 > Btw, I created CalXis and LectOS entirely because of the confusing CASIO fx-991 calculator (LOL
 
 ```
@@ -115,9 +119,20 @@ cmake --target ApsisUI2
 [0%] Building target (ETA: 2000 yrs)
 ```
 
-## CalXis Repository
+## *CalXis Repository
 
 - Calculation core  
   ![Repo ScalRR](https://lysissss-readme-stats.vercel.app/api/pin/?username=Lysissss-Official&repo=ScalRR&theme=transparent)
 - Former OS edition  
   ![Repo Lect0](https://lysissss-readme-stats.vercel.app/api/pin/?username=Lysissss-Official&repo=Lect0&theme=transparent)
+
+---
+
+<p align="right">
+  <img src="./assets/lect_dark.svg" width="72" align="middle">
+  &nbsp;&nbsp;
+  <img src="./assets/lect_logo_dark.svg" width="48" align="middle">
+  &nbsp;&nbsp;
+  <span> | LectOS 2 | ApsisUI Ⅱ | </span>
+  <a href=#readme-top> Back to the top </a>
+</p>
