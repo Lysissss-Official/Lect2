@@ -23,7 +23,6 @@ int main() {
 
     // --- Screen ---
     lui::scr::Screen screen;
-    screen.setID(1);
     screen.width  = 1200;
     screen.height = 480;
 
@@ -34,7 +33,6 @@ int main() {
 
     // --- Demo application ---
     DemoApp app;
-    app.setID(1);
     app.setup(&screen, &renderer, &controller, &translator);
 
     std::cout << "LectOS 2 / ApsisUI II Demo" << std::endl;

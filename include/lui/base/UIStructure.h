@@ -6,10 +6,44 @@
 #define APSISUI2_UISTRUCTURE_H
 
 #include <cstdint>
+#include <random>
+#include <set>
 #include <string>
 #include <vector>
 
 namespace lui {
+
+    // =========================================================================
+    // Auto ID generator — per-type tag to keep id spaces independent.
+    // Uses random seed + linear probe on collision.
+    // =========================================================================
+    template<typename Tag>
+    class IDGenerator {
+    private:
+        static std::set<uint32_t>& registry() {
+            static std::set<uint32_t> s;
+            return s;
+        }
+
+    public:
+        static uint32_t generate() {
+            static std::mt19937 rng(std::random_device{}());
+            std::uniform_int_distribution<uint32_t> dist(1, 0xFFFFFFFF);
+
+            auto& used = registry();
+            uint32_t id = dist(rng);
+            while (used.count(id)) {
+                id++;
+                if (id == 0) id = 1;
+            }
+            used.insert(id);
+            return id;
+        }
+
+        static void release(uint32_t id) {
+            registry().erase(id);
+        }
+    };
 
     // Forward declarations for cross-namespace references
     namespace render { class Render; }
@@ -22,7 +56,7 @@ namespace lui {
             ELE_TEXTBOX = 0,
             ELE_BUTTON,
             ELE_LIST,
-            ELE_EMPTY    // Free draw via Render interface
+            ELE_EMPTY
         };
 
         class Element {
@@ -33,8 +67,8 @@ namespace lui {
             ElementType type;
 
             // Logical position (percentage of screen, 0.0–100.0)
-            float logic_x1, logic_y1;   // Top-left
-            float logic_x2, logic_y2;   // Bottom-right
+            float logic_x1, logic_y1;
+            float logic_x2, logic_y2;
 
             // Physical position (pixels, computed at runtime via updatePhysical)
             uint16_t phys_x1, phys_y1;
@@ -50,10 +84,13 @@ namespace lui {
             std::string content;
 
             Element() : type(ELE_EMPTY), logic_x1(0), logic_y1(0), logic_x2(0), logic_y2(0),
-                        phys_x1(0), phys_y1(0), phys_x2(0), phys_y2(0), uni_id(0) {}
+                        phys_x1(0), phys_y1(0), phys_x2(0), phys_y2(0) {
+                uni_id = IDGenerator<Element>::generate();
+            }
+
+            ~Element() { IDGenerator<Element>::release(uni_id); }
 
             uint32_t getID() const { return uni_id; }
-            void setID(uint32_t id) { uni_id = id; }
 
             void updatePhysical(uint16_t screen_width, uint16_t screen_height) {
                 phys_x1 = static_cast<uint16_t>(logic_x1 / 100.0f * screen_width);
@@ -66,12 +103,10 @@ namespace lui {
                 return x >= logic_x1 && x <= logic_x2 && y >= logic_y1 && y <= logic_y2;
             }
 
-            // Horizontal overlap check (for up/down neighbor search)
             bool overlapsHorizontally(const Element& other) const {
                 return logic_x1 < other.logic_x2 && logic_x2 > other.logic_x1;
             }
 
-            // Vertical overlap check (for left/right neighbor search)
             bool overlapsVertically(const Element& other) const {
                 return logic_y1 < other.logic_y2 && logic_y2 > other.logic_y1;
             }
@@ -97,10 +132,13 @@ namespace lui {
             size_t focused_element_index = 0;
 
             Block() : logic_x1(0), logic_y1(0), logic_x2(0), logic_y2(0),
-                      phys_x1(0), phys_y1(0), phys_x2(0), phys_y2(0), uni_id(0) {}
+                      phys_x1(0), phys_y1(0), phys_x2(0), phys_y2(0) {
+                uni_id = IDGenerator<Block>::generate();
+            }
+
+            ~Block() { IDGenerator<Block>::release(uni_id); }
 
             uint32_t getID() const { return uni_id; }
-            void setID(uint32_t id) { uni_id = id; }
 
             void updatePhysical(uint16_t screen_width, uint16_t screen_height) {
                 phys_x1 = static_cast<uint16_t>(logic_x1 / 100.0f * screen_width);
@@ -131,8 +169,9 @@ namespace lui {
         private:
             uint32_t uni_id;
 
-            static constexpr uint16_t STATUS_BAR_FULL = 24;   // Thin status bar for full-height pages
-            static constexpr uint16_t STATUS_BAR_HALF = 48;   // Thick status bar for half-height pages
+            static constexpr uint16_t STATUS_BAR_FULL = 24;
+            static constexpr uint16_t STATUS_BAR_HALF = 48;
+            static constexpr uint16_t SCROLL_MARGIN   = 12;
 
         public:
             PageHeight height_mode = PAGE_FULL;
@@ -141,10 +180,15 @@ namespace lui {
             std::vector<blk::Block> blocks;
             ele::Element* current_focused = nullptr;
 
-            Page() : uni_id(0) {}
+            // Scroll support
+            float    scroll_y    = 0.0f;
+            uint16_t viewport_h  = 0;
+            float    max_scroll  = 0.0f;
+
+            Page() { uni_id = IDGenerator<Page>::generate(); }
+            ~Page() { IDGenerator<Page>::release(uni_id); }
 
             uint32_t getID() const { return uni_id; }
-            void setID(uint32_t id) { uni_id = id; }
 
             void switchHeight() {
                 height_mode = (height_mode == PAGE_FULL) ? PAGE_HALF : PAGE_FULL;
@@ -152,15 +196,51 @@ namespace lui {
             }
 
             void updatePhysical(uint16_t screen_width, uint16_t screen_height) {
+                viewport_h = screen_height;
                 for (auto& blk : blocks) {
                     blk.updatePhysical(screen_width, screen_height);
                 }
+                recomputeMaxScroll();
                 recalculateFocus();
+            }
+
+            void recomputeMaxScroll() {
+                float bottom = static_cast<float>(viewport_h);
+                for (auto& blk : blocks) {
+                    if (static_cast<float>(blk.phys_y2) > bottom)
+                        bottom = static_cast<float>(blk.phys_y2);
+                    for (auto& el : blk.elements) {
+                        if (static_cast<float>(el.phys_y2) > bottom)
+                            bottom = static_cast<float>(el.phys_y2);
+                    }
+                }
+                max_scroll = bottom - viewport_h + status_bar_thickness;
+                if (max_scroll < 0.0f) max_scroll = 0.0f;
+                if (scroll_y > max_scroll) scroll_y = max_scroll;
+                if (scroll_y < 0.0f) scroll_y = 0.0f;
+            }
+
+            void scrollToShow(ele::Element* el) {
+                if (!el) return;
+
+                float screen_y1 = static_cast<float>(el->phys_y1) - scroll_y;
+                float screen_y2 = static_cast<float>(el->phys_y2) - scroll_y;
+
+                float top_margin    = static_cast<float>(status_bar_thickness) + SCROLL_MARGIN;
+                float bottom_margin = static_cast<float>(viewport_h) - SCROLL_MARGIN;
+
+                if (screen_y1 < top_margin) {
+                    scroll_y -= (top_margin - screen_y1);
+                } else if (screen_y2 > bottom_margin) {
+                    scroll_y += (screen_y2 - bottom_margin);
+                }
+
+                if (scroll_y < 0.0f) scroll_y = 0.0f;
+                if (scroll_y > max_scroll) scroll_y = max_scroll;
             }
 
             // Rebuild focus neighbour pointers across ALL elements in the page
             void recalculateFocus() {
-                // Collect all element pointers
                 std::vector<ele::Element*> all;
                 for (auto& blk : blocks) {
                     for (auto& el : blk.elements) {
@@ -181,22 +261,18 @@ namespace lui {
                         if (i == j) continue;
                         ele::Element* b = all[j];
 
-                        // Right: b is to the right of a, with vertical overlap
                         if (b->logic_x1 >= a->logic_x2 && a->overlapsVertically(*b)) {
                             float dist = b->logic_x1 - a->logic_x2;
                             if (dist < best_right) { best_right = dist; a->focus_right = b; }
                         }
-                        // Left: b is to the left of a, with vertical overlap
                         if (b->logic_x2 <= a->logic_x1 && a->overlapsVertically(*b)) {
                             float dist = a->logic_x1 - b->logic_x2;
                             if (dist < best_left) { best_left = dist; a->focus_left = b; }
                         }
-                        // Down: b is below a, with horizontal overlap
                         if (b->logic_y1 >= a->logic_y2 && a->overlapsHorizontally(*b)) {
                             float dist = b->logic_y1 - a->logic_y2;
                             if (dist < best_down) { best_down = dist; a->focus_down = b; }
                         }
-                        // Up: b is above a, with horizontal overlap
                         if (b->logic_y2 <= a->logic_y1 && a->overlapsHorizontally(*b)) {
                             float dist = a->logic_y1 - b->logic_y2;
                             if (dist < best_up) { best_up = dist; a->focus_up = b; }
@@ -204,7 +280,6 @@ namespace lui {
                     }
                 }
 
-                // Default focus to first element of first block if nothing focused
                 if (!current_focused) {
                     if (!blocks.empty() && !blocks[0].elements.empty())
                         setFocus(&blocks[0].elements[0]);
@@ -214,7 +289,10 @@ namespace lui {
             void setFocus(ele::Element* el) {
                 if (current_focused) current_focused->focused = false;
                 current_focused = el;
-                if (current_focused) current_focused->focused = true;
+                if (current_focused) {
+                    current_focused->focused = true;
+                    scrollToShow(current_focused);
+                }
             }
 
             bool moveFocusRight() {
@@ -257,10 +335,10 @@ namespace lui {
             uint16_t height = 0;
             ColorMode color_mode = SCREEN_RGB;
 
-            Screen() : uni_id(0) {}
+            Screen() { uni_id = IDGenerator<Screen>::generate(); }
+            ~Screen() { IDGenerator<Screen>::release(uni_id); }
 
             uint32_t getID() const { return uni_id; }
-            void setID(uint32_t id) { uni_id = id; }
         };
     }
 
@@ -278,22 +356,20 @@ namespace lui {
 
         public:
             ApplicationType type  = APP_UNKNOWN;
-            std::string vm_path;                 // Script path for VM-type apps
-            pge::Page* start_page = nullptr;     // Initial page
+            std::string vm_path;
+            pge::Page* start_page = nullptr;
 
-            // Runtime services (set before app_main)
             scr::Screen*                screen     = nullptr;
             render::Render*             renderer   = nullptr;
             ctrller::CtrllerService*    controller = nullptr;
             transor::TranslatorService* translator = nullptr;
 
-            Application() : uni_id(0) {}
+            Application() { uni_id = IDGenerator<Application>::generate(); }
+            virtual ~Application() { IDGenerator<Application>::release(uni_id); }
 
             virtual void app_main() = 0;
-            virtual ~Application() = default;
 
             uint32_t getID() const { return uni_id; }
-            void setID(uint32_t id) { uni_id = id; }
         };
     }
 }

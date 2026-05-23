@@ -1,6 +1,7 @@
 //
 // Demo application for ApsisUI II — LectOS 2
-// Demonstrates page layout, focus navigation via arrow keys, and rendering.
+// Demonstrates page layout, scrollable content, focus navigation,
+// and animated focus transitions.
 //
 
 #ifndef APSISUI2_DEMO_APP_H
@@ -45,26 +46,20 @@ public:
     void app_main() override {
         if (!screen || !renderer || !controller) return;
 
-        // Initial render
-        BeginBatchDraw();
-        renderer->renderPage(&demo_page);
-        FlushBatchDraw();
-
         using clock = std::chrono::steady_clock;
         auto last_input = clock::now();
 
+        // Continuous render loop for smooth animation
         while (true) {
             controller->refreshStatus();
 
-            // Exit on ESC
             if (controller->getKB(VK_ESCAPE) == 1) break;
 
-            // Throttle input to ~10 Hz for usable navigation
             auto now = clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - last_input).count();
 
-            if (elapsed >= 100) {
+            if (elapsed >= 80) {
                 float deg = controller->getSW();
                 bool moved = false;
 
@@ -73,15 +68,16 @@ public:
                     case 90:  moved = demo_page.moveFocusUp();    break;
                     case 180: moved = demo_page.moveFocusLeft();  break;
                     case 270: moved = demo_page.moveFocusDown();  break;
+                    case -1:  break;
                 }
 
-                if (moved) {
-                    BeginBatchDraw();
-                    renderer->renderPage(&demo_page);
-                    FlushBatchDraw();
-                    last_input = now;
-                }
+                if (moved) last_input = now;
             }
+
+            // Render every frame so animation interpolates smoothly
+            BeginBatchDraw();
+            renderer->renderPage(&demo_page);
+            FlushBatchDraw();
 
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
@@ -91,107 +87,164 @@ private:
     pge::Page demo_page;
 
     void buildPage() {
-        // --- Block 1: Top row — title area (full width, thin) ---
+        float y = 5.0f;
+
+        // ============================================================
+        // Block 1 — Header (always visible, top of page)
+        // ============================================================
         {
             blk::Block header;
-            header.setID(1);
-            header.logic_x1 =  0.0f; header.logic_y1 =  5.0f;
-            header.logic_x2 = 100.0f; header.logic_y2 = 18.0f;
+            header.logic_x1 =  0.0f; header.logic_y1 = y;
+            header.logic_x2 = 100.0f; header.logic_y2 = y + 12.0f;
 
             ele::Element title;
-            title.setID(101);
             title.type    = ele::ELE_TEXTBOX;
             title.content = "ApsisUI II  —  LectOS 2 Demo";
-            title.logic_x1 = 25.0f; title.logic_y1 = 5.0f;
-            title.logic_x2 = 75.0f; title.logic_y2 = 14.0f;
+            title.logic_x1 = 20.0f; title.logic_y1 = y + 1.0f;
+            title.logic_x2 = 80.0f; title.logic_y2 = y + 10.0f;
             header.elements.push_back(title);
 
             demo_page.blocks.push_back(header);
+            y += 14.0f;
         }
 
-        // --- Block 2: Mid row — three columns of buttons ---
+        // ============================================================
+        // Block 2 — Quick actions (3-column button grid)
+        // ============================================================
         {
-            blk::Block mid;
-            mid.setID(2);
-            mid.logic_x1 =  2.0f; mid.logic_y1 = 22.0f;
-            mid.logic_x2 = 98.0f; mid.logic_y2 = 58.0f;
+            blk::Block actions;
+            actions.logic_x1 =  2.0f; actions.logic_y1 = y;
+            actions.logic_x2 = 98.0f; actions.logic_y2 = y + 38.0f;
 
-            // Column 1
-            ele::Element btn_a;
-            btn_a.setID(201);
-            btn_a.type    = ele::ELE_BUTTON;
-            btn_a.content = "Option A";
-            btn_a.logic_x1 =  5.0f; btn_a.logic_y1 = 26.0f;
-            btn_a.logic_x2 = 30.0f; btn_a.logic_y2 = 36.0f;
-            mid.elements.push_back(btn_a);
+            auto addBtn = [&](const char* label, float lx, float ly, float rx, float ry) {
+                ele::Element btn;
+                btn.type    = ele::ELE_BUTTON;
+                btn.content = label;
+                btn.logic_x1 = lx; btn.logic_y1 = ly;
+                btn.logic_x2 = rx; btn.logic_y2 = ry;
+                actions.elements.push_back(btn);
+            };
 
-            ele::Element btn_b;
-            btn_b.setID(202);
-            btn_b.type    = ele::ELE_BUTTON;
-            btn_b.content = "Option B";
-            btn_b.logic_x1 =  5.0f; btn_b.logic_y1 = 40.0f;
-            btn_b.logic_x2 = 30.0f; btn_b.logic_y2 = 50.0f;
-            mid.elements.push_back(btn_b);
+            addBtn("Option A",   5.0f,  y + 4.0f, 30.0f, y + 14.0f);
+            addBtn("Option B",   5.0f,  y +18.0f, 30.0f, y + 28.0f);
+            addBtn("Settings",  35.0f,  y + 4.0f, 65.0f, y + 14.0f);
 
-            // Column 2
-            ele::Element btn_c;
-            btn_c.setID(203);
-            btn_c.type    = ele::ELE_BUTTON;
-            btn_c.content = "Settings";
-            btn_c.logic_x1 = 35.0f; btn_c.logic_y1 = 26.0f;
-            btn_c.logic_x2 = 65.0f; btn_c.logic_y2 = 36.0f;
-            mid.elements.push_back(btn_c);
+            {
+                ele::Element lst;
+                lst.type    = ele::ELE_LIST;
+                lst.content = "Item 1 / Item 2 / Item 3";
+                lst.logic_x1 = 35.0f; lst.logic_y1 = y + 18.0f;
+                lst.logic_x2 = 65.0f; lst.logic_y2 = y + 32.0f;
+                actions.elements.push_back(lst);
+            }
 
-            ele::Element list;
-            list.setID(204);
-            list.type    = ele::ELE_LIST;
-            list.content = "Item 1 / Item 2 / Item 3";
-            list.logic_x1 = 35.0f; list.logic_y1 = 40.0f;
-            list.logic_x2 = 65.0f; list.logic_y2 = 54.0f;
-            mid.elements.push_back(list);
+            addBtn("Help",      70.0f,  y + 4.0f, 95.0f, y + 14.0f);
+            addBtn("About",     70.0f,  y +18.0f, 95.0f, y + 28.0f);
 
-            // Column 3
-            ele::Element btn_d;
-            btn_d.setID(205);
-            btn_d.type    = ele::ELE_BUTTON;
-            btn_d.content = "Help";
-            btn_d.logic_x1 = 70.0f; btn_d.logic_y1 = 26.0f;
-            btn_d.logic_x2 = 95.0f; btn_d.logic_y2 = 36.0f;
-            mid.elements.push_back(btn_d);
-
-            ele::Element btn_e;
-            btn_e.setID(206);
-            btn_e.type    = ele::ELE_BUTTON;
-            btn_e.content = "About";
-            btn_e.logic_x1 = 70.0f; btn_e.logic_y1 = 40.0f;
-            btn_e.logic_x2 = 95.0f; btn_e.logic_y2 = 50.0f;
-            mid.elements.push_back(btn_e);
-
-            demo_page.blocks.push_back(mid);
+            demo_page.blocks.push_back(actions);
+            y += 40.0f;
         }
 
-        // --- Block 3: Bottom row — status / info ---
+        // ============================================================
+        // Block 3 — Data panel (scrolls into view as you go down)
+        // ============================================================
+        {
+            blk::Block data;
+            data.logic_x1 =  2.0f; data.logic_y1 = y;
+            data.logic_x2 = 98.0f; data.logic_y2 = y + 48.0f;
+
+            auto addField = [&](const char* label, float lx, float ly, float rx, float ry) {
+                ele::Element f;
+                f.type    = ele::ELE_TEXTBOX;
+                f.content = label;
+                f.logic_x1 = lx; f.logic_y1 = ly;
+                f.logic_x2 = rx; f.logic_y2 = ry;
+                data.elements.push_back(f);
+            };
+
+            addField("Sensor A:  247.3 kPa",      5.0f, y + 2.0f,  47.0f, y +10.0f);
+            addField("Sensor B:   18.7 C",        5.0f, y +12.0f,  47.0f, y +20.0f);
+            addField("Sensor C:  1024 rpm",       5.0f, y +22.0f,  47.0f, y +30.0f);
+            addField("Sensor D:    0.82 V",       5.0f, y +32.0f,  47.0f, y +40.0f);
+
+            addField("Axis X:     +12.5 mm",     52.0f, y + 2.0f,  95.0f, y +10.0f);
+            addField("Axis Y:      -3.2 mm",     52.0f, y +12.0f,  95.0f, y +20.0f);
+            addField("Axis Z:     +45.1 mm",     52.0f, y +22.0f,  95.0f, y +30.0f);
+            addField("Tilt:        2.8 deg",     52.0f, y +32.0f,  95.0f, y +40.0f);
+
+            demo_page.blocks.push_back(data);
+            y += 50.0f;
+        }
+
+        // ============================================================
+        // Block 4 — Calibration controls (scrolls into view)
+        // ============================================================
+        {
+            blk::Block calib;
+            calib.logic_x1 =  2.0f; calib.logic_y1 = y;
+            calib.logic_x2 = 98.0f; calib.logic_y2 = y + 36.0f;
+
+            auto addBtn = [&](const char* label, float lx, float ly, float rx, float ry) {
+                ele::Element btn;
+                btn.type    = ele::ELE_BUTTON;
+                btn.content = label;
+                btn.logic_x1 = lx; btn.logic_y1 = ly;
+                btn.logic_x2 = rx; btn.logic_y2 = ry;
+                calib.elements.push_back(btn);
+            };
+
+            addBtn("Zero All Axes",     5.0f,  y + 4.0f, 47.0f, y + 14.0f);
+            addBtn("Run Calibration",   5.0f,  y +18.0f, 47.0f, y + 28.0f);
+            addBtn("Load Profile",     52.0f,  y + 4.0f, 95.0f, y + 14.0f);
+            addBtn("Save Profile",     52.0f,  y +18.0f, 95.0f, y + 28.0f);
+
+            demo_page.blocks.push_back(calib);
+            y += 38.0f;
+        }
+
+        // ============================================================
+        // Block 5 — Diagnostics log (long list; extends page well down)
+        // ============================================================
+        {
+            blk::Block diag;
+            diag.logic_x1 =  2.0f; diag.logic_y1 = y;
+            diag.logic_x2 = 98.0f; diag.logic_y2 = y + 50.0f;
+
+            auto addEntry = [&](const char* text, float ly) {
+                ele::Element e;
+                e.type    = ele::ELE_TEXTBOX;
+                e.content = text;
+                e.logic_x1 = 5.0f;  e.logic_y1 = ly;
+                e.logic_x2 = 95.0f; e.logic_y2 = ly + 7.0f;
+                diag.elements.push_back(e);
+            };
+
+            addEntry("[12:00] System boot ........................ OK",     y + 2.0f);
+            addEntry("[12:01] SPI bus init ....................... OK",     y + 9.0f);
+            addEntry("[12:01] Sensor polling started ............. OK",     y +16.0f);
+            addEntry("[12:02] Calibration data loaded ............ OK",     y +23.0f);
+            addEntry("[12:03] Axis calculator online ............. OK",     y +30.0f);
+            addEntry("[12:04] Watchdog armed ..................... OK",     y +37.0f);
+            addEntry("[12:05] Ready for input .................... OK",     y +44.0f);
+
+            demo_page.blocks.push_back(diag);
+            y += 52.0f;
+        }
+
+        // ============================================================
+        // Block 6 — Footer (far below; requires scrolling)
+        // ============================================================
         {
             blk::Block footer;
-            footer.setID(3);
-            footer.logic_x1 =  2.0f; footer.logic_y1 = 62.0f;
-            footer.logic_x2 = 98.0f; footer.logic_y2 = 92.0f;
+            footer.logic_x1 =  2.0f; footer.logic_y1 = y;
+            footer.logic_x2 = 98.0f; footer.logic_y2 = y + 14.0f;
 
             ele::Element info;
-            info.setID(301);
             info.type    = ele::ELE_TEXTBOX;
-            info.content = "Arrow keys move focus.  ESC exits.";
-            info.logic_x1 =  5.0f; info.logic_y1 = 68.0f;
-            info.logic_x2 = 95.0f; info.logic_y2 = 80.0f;
+            info.content = "Arrow keys = move focus  |  ESC = exit  |  Page scrolls to follow";
+            info.logic_x1 = 5.0f; info.logic_y1 = y + 2.0f;
+            info.logic_x2 = 95.0f; info.logic_y2 = y + 11.0f;
             footer.elements.push_back(info);
-
-            ele::Element empty_area;
-            empty_area.setID(302);
-            empty_area.type    = ele::ELE_EMPTY;
-            empty_area.content = "";
-            empty_area.logic_x1 =  5.0f; empty_area.logic_y1 = 82.0f;
-            empty_area.logic_x2 = 95.0f; empty_area.logic_y2 = 90.0f;
-            footer.elements.push_back(empty_area);
 
             demo_page.blocks.push_back(footer);
         }

@@ -48,17 +48,17 @@ namespace lui {
 
             // Utility: draw a filled rectangle with a border
             void drawFilledRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
-                                uint16_t fill_color, uint16_t border_color) {
-                setfillcolor(static_cast<COLORREF>(fill_color));
-                setlinecolor(static_cast<COLORREF>(border_color));
+                                COLORREF fill_color, COLORREF border_color) {
+                setfillcolor(fill_color);
+                setlinecolor(border_color);
                 fillrectangle(static_cast<int>(x1), static_cast<int>(y1),
                               static_cast<int>(x2), static_cast<int>(y2));
             }
 
             // Utility: output a string at pixel position
             void drawString(uint16_t x, uint16_t y, const char* str,
-                            uint16_t color = WHITE, int font_h = 16) {
-                settextcolor(static_cast<COLORREF>(color));
+                            COLORREF color = WHITE, int font_h = 16) {
+                settextcolor(color);
                 settextstyle(font_h, 0, _T("Consolas"));
                 outtextxy(static_cast<int>(x), static_cast<int>(y), str);
             }
