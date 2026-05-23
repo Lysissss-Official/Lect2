@@ -4,35 +4,50 @@
 
 #ifndef APSISUI2_UIRENDER_H
 #define APSISUI2_UIRENDER_H
+
 #include <cstdint>
 #include <list>
 #include <queue>
+#include <string>
+#include <utility>
+#include <vector>
+#include <stdexcept>
+
+#include "UIStructure.h"
 
 namespace lui {
     namespace render {
+
         class Render {
         protected:
-            struct RenderRequest {
-                uint32_t cpu_time_start;
-                uint32_t cpu_time_use;
-                struct RenderRequestData {
-                    enum RenderRequestDataType {
-                        CHANGE_ELEMENT = 1,
-                        CHANGE_PAGE = 2
-                    };
-                    RenderRequestDataType type;
-                    std::vector<std::pair<std::string, uint32_t>> args;
-                    uint32_t anime_func;
-                    uint32_t target_id;
-                };
+            enum RequestType {
+                REQ_CHANGE_ELEMENT = 1,
+                REQ_CHANGE_PAGE    = 2,
+                REQ_DRAW_ELEMENT   = 3
             };
-            std::queue<RenderRequest> render_requests_pre;  // 等待渲染队列
-            std::list<RenderRequest> render_requests_now;   // 正在渲染项
+
+            struct RenderRequest {
+                uint32_t cpu_time_start = 0;
+                uint32_t cpu_time_use   = 0;
+                RequestType type        = REQ_CHANGE_PAGE;
+                uint32_t target_id      = 0;
+                uint32_t anime_func     = 0;
+                std::vector<std::pair<std::string, uint32_t>> args;
+            };
+
+            std::queue<RenderRequest> render_requests_pre;
+            std::list<RenderRequest>  render_requests_now;
 
         public:
             virtual void renderService() {
-                throw std::runtime_error("LUI Render: Attempted to call renderService(), but it is not implemented.");
-            };
+                throw std::runtime_error(
+                    "LUI Render: renderService() not implemented.");
+            }
+
+            virtual void renderPage(pge::Page* page) {
+                throw std::runtime_error(
+                    "LUI Render: renderPage() not implemented.");
+            }
         };
     }
 }

@@ -5,7 +5,8 @@
 #ifndef APSISUI2_UITRANSOR_H
 #define APSISUI2_UITRANSOR_H
 
-#include <stdint.h>
+#include <cstdint>
+#include <stdexcept>
 
 namespace lui {
     namespace transor {

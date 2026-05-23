@@ -5,33 +5,37 @@
 #ifndef APSISUI2_UICTRLLER_H
 #define APSISUI2_UICTRLLER_H
 
-#include <stdint.h>
+#include <cstdint>
+#include <vector>
 
 namespace lui {
     namespace ctrller {
+
         struct KeyboardState {
             std::vector<uint8_t> key;
         };
+
         struct SwitchState {
-            float degree;
+            float degree = -1.0f;   // Joystick angle: 0=right, 90=up, 180=left, 270=down, -1=neutral
         };
 
         class CtrllerService {
         protected:
             KeyboardState kb_state;
-            SwitchState sw_state;
+            SwitchState   sw_state;
+
         public:
-            uint8_t getKB(uint16_t no) {
-                if (no < kb_state.key.size()) {
-                    return kb_state.key[no];
+            uint8_t getKB(uint16_t vk_code) {
+                if (vk_code < kb_state.key.size()) {
+                    return kb_state.key[vk_code];
                 }
-                else {
-                    return 2;
-                }
+                return 2;   // Out of range
             }
-            double getSW() {
-                return sw_state;
+
+            float getSW() {
+                return sw_state.degree;
             }
+
             virtual void refreshStatus() = 0;
         };
     }

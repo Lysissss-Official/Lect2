@@ -36,9 +36,9 @@ namespace core {
         {
             app_id = 0;
 
-            foreground =false;
-            allow_input =false;
-            allow_render =false;
+            foreground = false;
+            allow_input = false;
+            allow_render = false;
 
             state =THREAD_STOPPED;
 
@@ -54,10 +54,8 @@ namespace core {
         uint32_t current_fg;
 
     public:
-        ThreadMgr()
-        {
-            current_fg = 0;
-        }
+        ThreadMgr();
+        ~ThreadMgr();
 
         void registerApp(
             lui::app::Application* app
