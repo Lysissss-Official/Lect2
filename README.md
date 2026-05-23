@@ -49,3 +49,9 @@ is being UPDATED ...
 cmake --target ApsisUI2
 [0%] Building target (ETA: 2000 yrs)
 ```
+
+## *CalXis Repository
+- Calculation core  
+![Repo ScalRR](https://lysissss-readme-stats.vercel.app/api/pin/?username=Lysissss-Official&repo=ScalRR&theme=transparent)  
+- Former OS edition  
+![Repo Lect0](https://lysissss-readme-stats.vercel.app/api/pin/?username=Lysissss-Official&repo=Lect0&theme=transparent)
