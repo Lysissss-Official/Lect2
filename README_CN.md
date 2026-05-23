@@ -1,3 +1,4 @@
+> 注：因为省事用了AI翻译 估计很栩栩如生了（
 <p align="center">
   <img src="./assets/lect_dark.svg" width="180" align="middle">
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
