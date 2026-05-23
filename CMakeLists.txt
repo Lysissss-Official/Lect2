@@ -8,6 +8,10 @@ add_executable(ApsisUI2
         src/main.cpp
         src/compat.c
         third_party/pocketpy/pocketpy.c
+        include/core/ThreadMgr.h
+        include/lui/platform/linux7/UICtrllerLinux7.h
+        include/lui/platform/linux7/UITransorLinux7.h
+        include/lui/theme/UIRenderApsisUI2.h
 )
 
 target_include_directories(ApsisUI2 PRIVATE

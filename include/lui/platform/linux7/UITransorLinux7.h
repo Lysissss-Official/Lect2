@@ -1,0 +1,8 @@
+//
+// Created by archeart on 2026/5/23.
+//
+
+#ifndef APSISUI2_UITRANSORLINUX7_H
+#define APSISUI2_UITRANSORLINUX7_H
+
+#endif //APSISUI2_UITRANSORLINUX7_H
