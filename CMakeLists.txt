@@ -19,8 +19,10 @@ add_executable(ApsisUI2
         include/lui/theme/UIRenderApsisUI2.h
         apps/demo_app.h
         include/lui/extension/font/font_20.h
-        include/lui/extension/font/UIFont.h
         include/lui/extension/font/FontBase.h
+        include/core/VMMgr.h
+        include/lui/extension/image/ExUIImage.h
+        include/lui/extension/font/ExUIFont.h
 )
 
 target_include_directories(ApsisUI2 PRIVATE
