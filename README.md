@@ -23,3 +23,29 @@
   <br>
   Built around mechanical-axis computation, binary states, and a post-industrial visual language.
 </p>
+
+## Architecture
+```
+is being UPDATED ...
+```
+
+## Components (TODO :( )
+- LectOS 2 Runtime
+- ApsisUI II Theme
+- Thread Manager
+- Native / VM (thanks to pocketpy) Applications
+- Partial Rendering Engine
+- Mechanical Axis Navigation
+- Cross-platform Backend Layer
+
+## Platform
+- Linux (Wine + EasyX Graffic simulator)
+- Windows (EasyX Graffic simulator)
+- ESP32-S3 (FreeRTOS + ST7306 Based LCD)
+
+> Btw, I create CalXis and LectOS entirely beacuse of the confusing CASIO fx-991 calclator (LOL
+
+```
+cmake --target ApsisUI2
+[0%] Building target (ETA: 2000 yrs)
+```
