@@ -6,6 +6,7 @@
 // 继承自 lui::Render，实现 LUI 五层架构的完整渲染管线。
 //
 // 渲染管线（renderPage 调用顺序）：
+//   0. 推进滚动动画（覆写 page->scroll_y 为插值）
 //   1. 清屏 + 背景填充
 //   2. 固定状态栏（屏幕顶部，不随滚动偏移）
 //   3. 推进焦点动画状态机
@@ -24,6 +25,10 @@
 // 焦点动画：
 //   聚焦切换时，边框从旧位置平滑插值到新位置（easeOut 三次缓出），
 //   持续时长约 220ms，动画结束后自动停用。
+//
+// 滚动动画：
+//   页面滚动偏移变化时（焦点切换触发 scrollToShow），从当前显示位置
+//   平滑滚动到目标位置（easeOut 三次缓出），持续时长约 280ms。
 // ============================================================================
 
 #ifndef APSISUI2_UIRENDERAPSISUI2_H
@@ -98,6 +103,30 @@ namespace lui {
             };
             FocusAnim anim;
 
+            // =================================================================
+            // ScrollAnim — 页面滚动插值动画状态
+            // =================================================================
+            // 当 App 线程修改 page->scroll_y（如焦点切换触发 scrollToShow）
+            // 时，渲染器检测变化并从当前显示位置平滑滚动到新目标。
+            //
+            //   from_scroll — 动画起始滚动偏移（当前显示位置）
+            //   to_scroll   — 动画目标滚动偏移（App 设置的新值）
+            //   current_scroll — 当前帧实际渲染的滚动偏移
+            //
+            // 若动画进行中有新目标到达，则从当前插值位置链接新动画，
+            // 保证连续快速操作时的视觉平滑。
+            // =================================================================
+            struct ScrollAnim {
+                bool     active         = false;
+                bool     initialized    = false;
+                float    from_scroll    = 0.0f;
+                float    to_scroll      = 0.0f;
+                float    current_scroll = 0.0f;
+                std::chrono::steady_clock::time_point start_time;
+                float    duration_s     = 0.28f;
+            };
+            ScrollAnim scroll_anim;
+
             // 缓出函数（三次方）：t 从 0→1 时，速度从快到慢，视觉上自然停止。
             static float easeOut(float t) {
                 if (t >= 1.0f) return 1.0f;
@@ -150,8 +179,8 @@ namespace lui {
             // 注入位图字体（如 font_20），设为 nullptr 可回退 EasyX 文本渲染。
             void setFont(lui::ext::FontBase* f) { font = f; }
 
-            // 焦点动画进行中时返回 true，使 daemon 以短间隔持续渲染。
-            bool hasPendingWork() override { return anim.active; }
+            // 焦点动画或滚动动画进行中时返回 true，使 daemon 以短间隔持续渲染。
+            bool hasPendingWork() override { return anim.active || scroll_anim.active; }
 
             // =================================================================
             // renderService — 处理渲染请求队列
@@ -174,9 +203,10 @@ namespace lui {
             // renderPage — 主渲染入口（每帧调用）
             // =================================================================
             // 渲染顺序（由底到顶）：
+            //   0. 滚动动画：推进时间线，覆写 page->scroll_y（在读取前）
             //   1. 背景：全屏填充 BG_DARK，调用 ClearDeviceCmd
             //   2. 状态栏：固定顶部，显示页面标题和滚动偏移量
-            //   3. 焦点动画：推进动画时间线
+            //   3. 焦点动画：推进焦点动画时间线
             //   4. 区块遍历：含视口裁剪（跳过超出屏幕的区块/元素），应用滚动偏移
             //   5. 焦点叠加层：绘制动画中的焦点框（屏幕空间，不受滚动影响）
             //   6. 滚动条：按需绘制（仅当 max_scroll > 0）
@@ -185,6 +215,9 @@ namespace lui {
                 if (!page || !ts) return;
 
                 BeginBatchDraw();
+
+                // ---- 0. 推进滚动动画（必须在读取 scroll_y 之前） ----
+                advanceScrollAnimation(page);
 
                 int bar_h  = static_cast<int>(page->status_bar_thickness);
                 int scr_w  = getwidth();
@@ -209,7 +242,7 @@ namespace lui {
                 }
 
                 // ---- 3. 推进焦点动画 ----
-                advanceAnimation(page);
+                advanceFocusAnimation(page);
 
                 int vp_top    = bar_h;      // 视口上边界 = 状态栏下方
                 int vp_bottom = scr_h;       // 视口下边界 = 屏幕底部
@@ -223,24 +256,27 @@ namespace lui {
                     // 视口裁剪：区块完全在视口外则跳过
                     if (by2 < vp_top || by1 > vp_bottom) continue;
 
+                    // 钳位到视口上边界（防止覆盖状态栏）
+                    int clip_by1 = std::max(by1, vp_top);
+
                     // 绘制区块背景（面板色填充 + 强调色边框）
-                    ts->drawFilledRect(blk.phys_x1, by1, blk.phys_x2, by2,
+                    ts->drawFilledRect(blk.phys_x1, clip_by1, blk.phys_x2, by2,
                                        theme_color::BG_PANEL, theme_color::ACCENT);
 
-                    // 区块 ID 标签（调试用，左上角小字）
-                    {
+                    // 区块 ID 标签（仅当区块顶部可见时绘制）
+                    if (by1 >= vp_top) {
                         char buf[32];
                         snprintf(buf, sizeof(buf), "Block #%u", blk.getID());
                         drawText(static_cast<int>(blk.phys_x1) + 4, by1 + 2,
                                  buf, theme_color::TEXT_DIM, 11);
                     }
 
-                    // 遍历子元素（同样含视口裁剪）
+                    // 遍历子元素（同样含视口裁剪 + 钳位）
                     for (auto& el : blk.elements) {
                         int ey1 = static_cast<int>(el.phys_y1) - scroll;
                         int ey2 = static_cast<int>(el.phys_y2) - scroll;
                         if (ey2 < vp_top || ey1 > vp_bottom) continue;
-                        drawElement(el, scroll);
+                        drawElement(el, scroll, vp_top);
                     }
                 }
 
@@ -257,7 +293,51 @@ namespace lui {
 
         private:
             // =================================================================
-            // advanceAnimation — 推进焦点动画状态机
+            // advanceScrollAnimation — 推进滚动动画状态机
+            // =================================================================
+            // 每帧比较 page->scroll_y（App 设置的滚动目标）与 scroll_anim.to_scroll。
+            // 若不同则从当前显示位置启动新动画（链接模式下从插值位置出发）。
+            // 动画期间覆写 page->scroll_y 为插值，驱动平滑滚动。
+            // =================================================================
+            void advanceScrollAnimation(Page* page) {
+                float target = page->scroll_y;
+
+                if (!scroll_anim.initialized) {
+                    scroll_anim.current_scroll = target;
+                    scroll_anim.from_scroll    = target;
+                    scroll_anim.to_scroll      = target;
+                    scroll_anim.initialized    = true;
+                    return;
+                }
+
+                if (target != scroll_anim.to_scroll
+                    && target != scroll_anim.current_scroll) {
+                    scroll_anim.from_scroll = scroll_anim.current_scroll;
+                    scroll_anim.to_scroll   = target;
+                    scroll_anim.start_time  = std::chrono::steady_clock::now();
+                    scroll_anim.active      = true;
+                }
+
+                if (scroll_anim.active) {
+                    auto now = std::chrono::steady_clock::now();
+                    float elapsed = std::chrono::duration<float>(now - scroll_anim.start_time).count();
+                    float t = std::min(elapsed / scroll_anim.duration_s, 1.0f);
+                    scroll_anim.current_scroll = scroll_anim.from_scroll +
+                        (scroll_anim.to_scroll - scroll_anim.from_scroll) * easeOut(t);
+                    page->scroll_y = scroll_anim.current_scroll;
+
+                    if (t >= 1.0f) {
+                        scroll_anim.active = false;
+                        scroll_anim.current_scroll = scroll_anim.to_scroll;
+                        page->scroll_y = scroll_anim.to_scroll;
+                    }
+                } else {
+                    scroll_anim.current_scroll = target;
+                }
+            }
+
+            // =================================================================
+            // advanceFocusAnimation — 推进焦点动画状态机
             // =================================================================
             // 在 renderPage 中每次调用，检测聚焦元素是否变化：
             //   - 无聚焦元素 → 停用动画
@@ -267,7 +347,7 @@ namespace lui {
             //     重置 start_time 为新起点
             //   - 聚焦元素未变 → 不重置，让动画继续插值到终点
             // =================================================================
-            void advanceAnimation(Page* page) {
+            void advanceFocusAnimation(Page* page) {
                 if (!page->current_focused) {
                     anim.active = false;
                     return;
@@ -356,18 +436,14 @@ namespace lui {
             // =================================================================
             // drawElement — 按类型分发元素绘制
             // =================================================================
-            // 支持四种元素类型：
-            //   ELE_BUTTON — 填充矩形 + 文本标签，聚焦时颜色高亮
-            //   ELE_TEXTBOX — 面板背景矩形 + 文本标签
-            //   ELE_LIST   — 同 TEXTBOX，额外绘制右侧滚动提示线
-            //   ELE_EMPTY  — 虚线边框空矩形（调试/占位用）
-            //
-            // 聚焦元素使用 focus 色系（边框亮蓝 + 填充高亮），
-            // 非聚焦元素使用 accent 色系（暗色边框）。
+            // vp_top 用于钳位元素顶端，防止滚动时绘制到状态栏上方。
             // =================================================================
-            void drawElement(Element& el, int scroll) {
+            void drawElement(Element& el, int scroll, int vp_top) {
                 int x1 = el.phys_x1, y1 = static_cast<int>(el.phys_y1) - scroll;
                 int x2 = el.phys_x2, y2 = static_cast<int>(el.phys_y2) - scroll;
+
+                // 钳位到视口上边界
+                int clip_y1 = std::max(y1, vp_top);
 
                 // 根据聚焦状态选择颜色
                 COLORREF border_c = el.focused ? theme_color::FOCUS_BORDER
@@ -379,33 +455,32 @@ namespace lui {
 
                 switch (el.type) {
                     case ELE_BUTTON:
-                        ts->drawFilledRect(x1, y1, x2, y2, fill_c, border_c);
-                        drawElementLabel(el, scroll,
+                        ts->drawFilledRect(x1, clip_y1, x2, y2, fill_c, border_c);
+                        drawElementLabel(el, scroll, vp_top,
                             el.focused ? WHITE : theme_color::TEXT_PRIMARY);
                         break;
                     case ELE_TEXTBOX:
-                        ts->drawFilledRect(x1, y1, x2, y2,
+                        ts->drawFilledRect(x1, clip_y1, x2, y2,
                             theme_color::BG_PANEL, border_c);
-                        drawElementLabel(el, scroll,
+                        drawElementLabel(el, scroll, vp_top,
                             el.focused ? WHITE : theme_color::TEXT_PRIMARY);
                         break;
                     case ELE_LIST:
-                        ts->drawFilledRect(x1, y1, x2, y2,
+                        ts->drawFilledRect(x1, clip_y1, x2, y2,
                             theme_color::BG_PANEL, border_c);
-                        drawElementLabel(el, scroll,
+                        drawElementLabel(el, scroll, vp_top,
                             el.focused ? WHITE : theme_color::TEXT_PRIMARY);
                         {
-                            // 右侧滚动提示竖线
                             int sx = x2 - 8;
+                            int ly1 = std::max(y1 + 4, vp_top);
                             setlinecolor(theme_color::TEXT_DIM);
-                            line(sx, y1 + 4, sx, y2 - 4);
+                            line(sx, ly1, sx, y2 - 4);
                         }
                         break;
                     case ELE_EMPTY:
-                        // 虚线矩形占位：仅边框，无填充，无文本
                         setlinecolor(border_c);
                         setlinestyle(PS_DOT, 1);
-                        rectangle(x1, y1, x2, y2);
+                        rectangle(x1, clip_y1, x2, y2);
                         setlinestyle(PS_SOLID, 1);
                         break;
                 }
@@ -421,10 +496,13 @@ namespace lui {
             //   off_y = 垂直偏移（位图 20px 字体用 10，EasyX 14px 字体用 7）
             // 最终绘制位置 x = cx - tw/2, y = cy - off_y（居中显示）
             // =================================================================
-            void drawElementLabel(Element& el, int scroll, COLORREF color) {
+            void drawElementLabel(Element& el, int scroll, int vp_top, COLORREF color) {
                 int cx = (el.phys_x1 + el.phys_x2) / 2;
                 int cy = (static_cast<int>(el.phys_y1) +
                           static_cast<int>(el.phys_y2)) / 2 - scroll;
+
+                // 标签中心在视口上方则跳过（防止文字画到状态栏区域）
+                if (cy < vp_top) return;
 
                 const char* label = el.content.empty() ? " " : el.content.c_str();
                 int font_h = font ? 20 : 14;
