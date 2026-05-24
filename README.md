@@ -114,16 +114,21 @@ cmake --build cmake-build-debug-mingw/
 
 > Btw, I created CalXis and LectOS entirely because of the confusing CASIO fx-991 calculator (LOL
 
-```
-cmake --target ApsisUI2
-[0%] Building target (ETA: 2000 yrs)
-```
+## *Demo Screenshots
 
-<p align="center">
-  <img src="./assets/demo.png" width="360" align="middle">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="./assets/pycon.png" width="360" align="middle">
-</p>
+- Running on ArchLinux with WINE  
+  <p align="left">
+    <img src="./assets/demo.png" width="360" align="middle">
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <img src="./assets/pycon.png" width="360" align="middle">
+  </p>
+
+- Running on ESP32-S3
+  <p align="left">
+    (ETA: 2000 yrs)
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    Orz
+  </p>
 
 ## *CalXis Repository
 
