@@ -120,9 +120,9 @@ cmake --target ApsisUI2
 ```
 
 <p align="center">
-  <img src="./assets/demo.png" width="280" align="middle">
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="./assets/pycon.png" width="280" align="middle">
+  <img src="./assets/demo.png" width="360" align="middle">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./assets/pycon.png" width="360" align="middle">
 </p>
 
 ## *CalXis Repository
