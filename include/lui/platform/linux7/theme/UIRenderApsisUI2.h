@@ -497,7 +497,6 @@ namespace lui {
             // 最终绘制位置 x = cx - tw/2, y = cy - off_y（居中显示）
             // =================================================================
             void drawElementLabel(Element& el, int scroll, int vp_top, COLORREF color) {
-                int cx = (el.phys_x1 + el.phys_x2) / 2;
                 int cy = (static_cast<int>(el.phys_y1) +
                           static_cast<int>(el.phys_y2)) / 2 - scroll;
 
@@ -506,9 +505,17 @@ namespace lui {
 
                 const char* label = el.content.empty() ? " " : el.content.c_str();
                 int font_h = font ? 20 : 14;
-                int tw = textWidth(label, font_h);
                 int off_y = font ? 10 : 7;
-                drawText(cx - tw / 2, cy - off_y, label, color, font_h);
+
+                // 文本框和列表左对齐，按钮居中
+                if (el.type == ELE_TEXTBOX || el.type == ELE_LIST) {
+                    int tx = static_cast<int>(el.phys_x1) + 6;
+                    drawText(tx, cy - off_y, label, color, font_h);
+                } else {
+                    int cx = (el.phys_x1 + el.phys_x2) / 2;
+                    int tw = textWidth(label, font_h);
+                    drawText(cx - tw / 2, cy - off_y, label, color, font_h);
+                }
             }
 
             // =================================================================

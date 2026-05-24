@@ -27,25 +27,40 @@ namespace lcore {
             py_finalize();
         }
 
-        // 执行一行 Python 代码。
-        // 返回 true 表示成功，output 填入表达式求值结果的字符串；
+        // 执行一行 Python 代码（REPL 风格）。
+        // 先尝试作为表达式求值（py_eval），失败则作为语句执行（EXEC_MODE）。
+        // 返回 true 表示成功，output 填入结果字符串或 "OK"；
         // 返回 false 表示异常，output 填入格式化的异常信息。
         bool exec(const char* code, std::string& output) {
-            const char* result = nullptr;
-            bool ok = py_smarteval(code, main_mod, "s", &result);
+            // 先尝试表达式求值（如 1+1, print("hi")）
+            bool ok = py_eval(code, main_mod);
+
+            if (!ok) {
+                // 表达式失败 → 可能是语句（如 x=5），清异常后改用 EXEC_MODE
+                py_clearexc(NULL);
+                ok = py_exec(code, "<stdin>", EXEC_MODE, main_mod);
+            }
 
             if (ok) {
-                if (result && result[0])
-                    output = result;
-                else
-                    output.clear();
+                // None 结果（如赋值语句）显示 OK
+                if (py_isnone(py_retval())) {
+                    output = "OK";
+                    return true;
+                }
+                // 将返回值转为字符串：先拷贝 py_retval() 到栈上，
+                // 再对栈上副本调用 py_str()（py_retval 不可作入参）
+                py_TValue saved = *py_retval();
+                py_str(&saved);
+                const char* s = py_tostr(py_retval());
+                output = s ? s : "";
                 return true;
             }
 
-            // 异常：py_formatexc 返回 malloc 的字符串
+            // 执行失败 → 格式化异常信息
             char* exc = py_formatexc();
             output = exc ? exc : "Unknown VM error";
             std::free(exc);
+            py_clearexc(NULL);
             return false;
         }
     };

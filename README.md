@@ -119,6 +119,12 @@ cmake --target ApsisUI2
 [0%] Building target (ETA: 2000 yrs)
 ```
 
+<p align="center">
+  <img src="./assets/demo.png" width="280" align="middle">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./assets/pycon.png" width="280" align="middle">
+</p>
+
 ## *CalXis Repository
 
 - Calculation core  

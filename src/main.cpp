@@ -47,16 +47,20 @@ int main() {
 
     // 启动两个应用
     threadMgr.startApp(demo_id);
-    //threadMgr.startApp(pycon_id);
+    threadMgr.startApp(pycon_id);
 
     // 等待 app_setup 完成（简单延时，生产环境应改用同步机制）
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
     // PyConsole 默认前台（注入其 start_page 到 renderd）
-    threadMgr.switchForeground(demo_id);
-    //threadMgr.switchForeground(pycon_id);
 
-    //threadMgr.joinApp(pycon_id);
+
+    threadMgr.switchForeground(demo_id);
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    threadMgr.switchForeground(pycon_id);
+
+
+    threadMgr.joinApp(pycon_id);
     threadMgr.joinApp(demo_id);
 
     threadMgr.stopService(ctl_id);
