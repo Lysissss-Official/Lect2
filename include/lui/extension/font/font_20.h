@@ -12,7 +12,7 @@
 // Size: 20px
 // Characters: 607
 
-namespace lui { namespace ext { namespace font {
+namespace lui { namespace ext {
 
 class Font_20 : public FontBase {
     using FontBase::FontBase;
@@ -630,7 +630,7 @@ inline Font_20 f20(FONT_SYSTEM,
 /*	###	*/{0x0000, 0, 0, {}}
 });
 
-}}} // namespace lui::ext::font
+}} // namespace lui::ext
 
 #define FONT_20_COUNT 607
 #endif //APSISUI2_FONT_20_H

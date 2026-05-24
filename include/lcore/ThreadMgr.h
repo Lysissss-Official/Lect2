@@ -9,9 +9,11 @@
 #include <map>
 #include <thread>
 
-#include "../lui/base/UIStructure.h"
+#include "../lapp/Application.h"
+#include "../lui/base/UICtrller.h"
+#include "../lui/base/UIRender.h"
 
-namespace core {
+namespace lcore {
 
     enum ThreadState {
         THREAD_STOPPED = 0,
@@ -30,7 +32,7 @@ namespace core {
         ThreadState state;
 
         std::thread* native_thread;
-        lui::app::Application* app_ptr;
+        lapp::Application* app_ptr;
 
         AppRuntime()
         {
@@ -40,25 +42,49 @@ namespace core {
             allow_input = false;
             allow_render = false;
 
-            state =THREAD_STOPPED;
+            state = THREAD_STOPPED;
 
             native_thread = nullptr;
             app_ptr = nullptr;
         }
     };
 
+    enum ServiceType {
+        SERVICE_CTRLLER = 0,
+        SERVICE_RENDER  = 1,
+        SERVICE_UNKNOWN = 100
+    };
+
+    struct ServiceRuntime {
+        uint32_t    service_id;
+        ServiceType type;
+        ThreadState state;
+        void*       service_ptr;
+
+        ServiceRuntime()
+        {
+            service_id = 0;
+            type       = SERVICE_UNKNOWN;
+            state      = THREAD_STOPPED;
+            service_ptr = nullptr;
+        }
+    };
+
     class ThreadMgr {
 
     private:
-        std::map<uint32_t,AppRuntime> runtime_table;
-        uint32_t current_fg;
+        std::map<uint32_t, AppRuntime>     app_table;
+        std::map<uint32_t, ServiceRuntime> service_table;
+        uint32_t foreground_now;
 
     public:
         ThreadMgr();
         ~ThreadMgr();
 
-        void registerApp(
-            lui::app::Application* app
+        // ---- App 操作 ----
+
+        uint32_t registerApp(
+            lapp::Application* app
         );
 
         void startApp(
@@ -93,6 +119,29 @@ namespace core {
         getRuntime(
             uint32_t id
         );
+
+        void joinApp(
+            uint32_t id
+        );
+
+        // ---- Service 操作 ----
+
+        uint32_t registerService(
+            ServiceType type,
+            void* ptr
+        );
+
+        void startService(
+            uint32_t id
+        );
+
+        void stopService(
+            uint32_t id
+        );
+
+    private:
+        uint32_t service_id_next_ = 1;
+        uint32_t app_id_next_     = 4097;
     };
 
 }

@@ -6,21 +6,24 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(ApsisUI2
         src/main.cpp
+        src/screen.cpp
         src/compat.c
         third_party/pocketpy/pocketpy.c
-        include/core/ThreadMgr.h
-        include/core/ThreadMgr.cpp
+        include/lcore/ThreadMgr.h
+        include/lcore/ThreadMgr.cpp
+        include/lapp/Application.h
         include/lui/base/UIStructure.h
         include/lui/base/UICtrller.h
         include/lui/base/UIRender.h
         include/lui/base/UITransor.h
         include/lui/platform/linux7/UICtrllerLinux7.h
         include/lui/platform/linux7/UITransorLinux7.h
-        include/lui/theme/UIRenderApsisUI2.h
+        include/lui/platform/linux7/theme/UIRenderApsisUI2.h
         apps/demo_app.h
+        apps/pyconsole_app.h
         include/lui/extension/font/font_20.h
         include/lui/extension/font/FontBase.h
-        include/core/VMMgr.h
+        include/lcore/VMMgr.h
         include/lui/extension/image/ExUIImage.h
         include/lui/extension/font/ExUIFont.h
 )

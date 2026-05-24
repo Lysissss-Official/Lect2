@@ -3,7 +3,7 @@
 //
 // ApsisUI II 主题渲染器
 // ============================================================================
-// 继承自 lui::render::Render，实现 LUI 五层架构的完整渲染管线。
+// 继承自 lui::Render，实现 LUI 五层架构的完整渲染管线。
 //
 // 渲染管线（renderPage 调用顺序）：
 //   1. 清屏 + 背景填充
@@ -18,7 +18,7 @@
 //   render_requests_now — 进行队列：renderService() 处理 pre 队列后移入
 //
 // 文本渲染策略：
-//   优先使用位图字体（lui::ext::font::FontBase，通过 Transor 逐像素绘制），
+//   优先使用位图字体（lui::ext::FontBase，通过 Transor 逐像素绘制），
 //   字体未注入时回退 EasyX 原生文本（Consolas + outtextxy）。
 //
 // 焦点动画：
@@ -36,12 +36,11 @@
 
 #include "easyx.h"
 #include "graphics.h"
-#include "../base/UIRender.h"
-#include "../base/UITransor.h"
-#include "../extension/font/FontBase.h"
+#include "../../../base/UIRender.h"
+#include "../../../base/UITransor.h"
+#include "../../../extension/font/FontBase.h"
 
 namespace lui {
-    namespace render {
 
         // =====================================================================
         // theme_color — ApsisUI II 主题色板
@@ -70,10 +69,10 @@ namespace lui {
         class UIRenderApsisUI2 : public Render {
         private:
             // Transor 转译器（平台层 EasyX 实现），用于底层绘制原语。
-            transor::UITransorLinux7* ts;
+            UITransorLinux7* ts;
 
             // 位图字体（可选）：注入后文本渲染将逐像素绘制，未注入则回退 EasyX。
-            lui::ext::font::FontBase* font = nullptr;
+            lui::ext::FontBase* font = nullptr;
 
             // =================================================================
             // FocusAnim — 焦点边框插值动画状态
@@ -145,11 +144,14 @@ namespace lui {
             }
 
         public:
-            explicit UIRenderApsisUI2(transor::UITransorLinux7* translator)
+            explicit UIRenderApsisUI2(UITransorLinux7* translator)
                 : ts(translator) {}
 
             // 注入位图字体（如 font_20），设为 nullptr 可回退 EasyX 文本渲染。
-            void setFont(lui::ext::font::FontBase* f) { font = f; }
+            void setFont(lui::ext::FontBase* f) { font = f; }
+
+            // 焦点动画进行中时返回 true，使 daemon 以短间隔持续渲染。
+            bool hasPendingWork() override { return anim.active; }
 
             // =================================================================
             // renderService — 处理渲染请求队列
@@ -158,9 +160,7 @@ namespace lui {
             // 将 render_requests_pre 队列中所有请求消费完毕后返回。
             // =================================================================
             void renderService() override {
-                while (!render_requests_pre.empty()) {
-                    RenderRequest req = render_requests_pre.front();
-                    render_requests_pre.pop();
+                for (auto& req : render_requests_now) {
                     switch (req.type) {
                         case REQ_CHANGE_PAGE:
                             if (ts) ts->ClearDeviceCmd();
@@ -181,8 +181,10 @@ namespace lui {
             //   5. 焦点叠加层：绘制动画中的焦点框（屏幕空间，不受滚动影响）
             //   6. 滚动条：按需绘制（仅当 max_scroll > 0）
             // =================================================================
-            void renderPage(pge::Page* page) override {
+            void renderPage(Page* page) override {
                 if (!page || !ts) return;
+
+                BeginBatchDraw();
 
                 int bar_h  = static_cast<int>(page->status_bar_thickness);
                 int scr_w  = getwidth();
@@ -201,7 +203,7 @@ namespace lui {
 
                     char buf[64];
                     snprintf(buf, sizeof(buf), "LectOS 2 | %s | scroll: %d",
-                             page->height_mode == pge::PAGE_FULL ? "FULL" : "HALF",
+                             page->height_mode == PAGE_FULL ? "FULL" : "HALF",
                              scroll);
                     drawText(8, 4, buf, theme_color::TEXT_DIM, 13);
                 }
@@ -249,6 +251,8 @@ namespace lui {
                 if (page->max_scroll > 0.0f) {
                     drawScrollbar(page);
                 }
+
+                FlushBatchDraw();
             }
 
         private:
@@ -263,7 +267,7 @@ namespace lui {
             //     重置 start_time 为新起点
             //   - 聚焦元素未变 → 不重置，让动画继续插值到终点
             // =================================================================
-            void advanceAnimation(pge::Page* page) {
+            void advanceAnimation(Page* page) {
                 if (!page->current_focused) {
                     anim.active = false;
                     return;
@@ -272,7 +276,7 @@ namespace lui {
                 uint32_t cur_id = page->current_focused->getID();
 
                 if (!anim.active || anim.last_focused != cur_id) {
-                    ele::Element* cur = page->current_focused;
+                    Element* cur = page->current_focused;
 
                     // 跨元素跳转：from 取旧动画的终点（避免视觉跳变）
                     if (anim.last_focused != 0 && anim.last_focused != cur_id) {
@@ -361,7 +365,7 @@ namespace lui {
             // 聚焦元素使用 focus 色系（边框亮蓝 + 填充高亮），
             // 非聚焦元素使用 accent 色系（暗色边框）。
             // =================================================================
-            void drawElement(ele::Element& el, int scroll) {
+            void drawElement(Element& el, int scroll) {
                 int x1 = el.phys_x1, y1 = static_cast<int>(el.phys_y1) - scroll;
                 int x2 = el.phys_x2, y2 = static_cast<int>(el.phys_y2) - scroll;
 
@@ -374,18 +378,18 @@ namespace lui {
                 setlinestyle(PS_SOLID, 1);
 
                 switch (el.type) {
-                    case ele::ELE_BUTTON:
+                    case ELE_BUTTON:
                         ts->drawFilledRect(x1, y1, x2, y2, fill_c, border_c);
                         drawElementLabel(el, scroll,
                             el.focused ? WHITE : theme_color::TEXT_PRIMARY);
                         break;
-                    case ele::ELE_TEXTBOX:
+                    case ELE_TEXTBOX:
                         ts->drawFilledRect(x1, y1, x2, y2,
                             theme_color::BG_PANEL, border_c);
                         drawElementLabel(el, scroll,
                             el.focused ? WHITE : theme_color::TEXT_PRIMARY);
                         break;
-                    case ele::ELE_LIST:
+                    case ELE_LIST:
                         ts->drawFilledRect(x1, y1, x2, y2,
                             theme_color::BG_PANEL, border_c);
                         drawElementLabel(el, scroll,
@@ -397,7 +401,7 @@ namespace lui {
                             line(sx, y1 + 4, sx, y2 - 4);
                         }
                         break;
-                    case ele::ELE_EMPTY:
+                    case ELE_EMPTY:
                         // 虚线矩形占位：仅边框，无填充，无文本
                         setlinecolor(border_c);
                         setlinestyle(PS_DOT, 1);
@@ -417,7 +421,7 @@ namespace lui {
             //   off_y = 垂直偏移（位图 20px 字体用 10，EasyX 14px 字体用 7）
             // 最终绘制位置 x = cx - tw/2, y = cy - off_y（居中显示）
             // =================================================================
-            void drawElementLabel(ele::Element& el, int scroll, COLORREF color) {
+            void drawElementLabel(Element& el, int scroll, COLORREF color) {
                 int cx = (el.phys_x1 + el.phys_x2) / 2;
                 int cy = (static_cast<int>(el.phys_y1) +
                           static_cast<int>(el.phys_y2)) / 2 - scroll;
@@ -442,7 +446,7 @@ namespace lui {
             //
             // 滑块位置与 scroll_y 成正比，视觉上反映当前滚动位置。
             // =================================================================
-            void drawScrollbar(pge::Page* page) {
+            void drawScrollbar(Page* page) {
                 int scr_w  = getwidth();
                 int scr_h  = getheight();
                 int bar_h  = static_cast<int>(page->status_bar_thickness);
@@ -468,7 +472,6 @@ namespace lui {
                 fillrectangle(sx, thumb_y, sx + 6, thumb_y + thumb_h);
             }
         };
-    }
 }
 
 #endif //APSISUI2_UIRENDERAPSISUI2_H

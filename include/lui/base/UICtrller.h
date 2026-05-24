@@ -7,9 +7,15 @@
 
 #include <cstdint>
 #include <vector>
+#include <atomic>
+#include <chrono>
+#include <mutex>
+#include <shared_mutex>
+#include <thread>
+
+#include "lcore/Log.h"
 
 namespace lui {
-    namespace ctrller {
 
         struct KeyboardState {
             std::vector<uint8_t> key;
@@ -26,6 +32,7 @@ namespace lui {
 
         public:
             uint8_t getKB(uint16_t vk_code) {
+                std::shared_lock lock(state_mutex_);
                 if (vk_code < kb_state.key.size()) {
                     return kb_state.key[vk_code];
                 }
@@ -33,12 +40,47 @@ namespace lui {
             }
 
             float getSW() {
+                std::shared_lock lock(state_mutex_);
                 return sw_state.degree;
             }
 
             virtual void refreshStatus() = 0;
+
+            // ---- 守护线程生命周期 ----
+
+            void startDaemon() {
+                if (daemon_running_.load(std::memory_order_acquire)) return;
+                LOG("Ctrller daemon starting");
+                daemon_running_.store(true, std::memory_order_release);
+                daemon_thread_ = std::thread(&CtrllerService::daemonLoop, this);
+            }
+
+            void stopDaemon() {
+                LOG("Ctrller daemon stopping");
+                daemon_running_.store(false, std::memory_order_release);
+                if (daemon_thread_.joinable()) {
+                    daemon_thread_.join();
+                    LOG("Ctrller daemon stopped");
+                }
+            }
+
+        private:
+            std::shared_mutex state_mutex_;
+            std::thread daemon_thread_;
+            std::atomic<bool> daemon_running_{false};
+
+            void daemonLoop() {
+                using namespace std::chrono;
+
+                while (daemon_running_.load(std::memory_order_acquire)) {
+                    {
+                        std::unique_lock lock(state_mutex_);
+                        refreshStatus();
+                    }
+                    std::this_thread::sleep_for(milliseconds(16));
+                }
+            }
         };
-    }
 }
 
 #endif //APSISUI2_UICTRLLER_H

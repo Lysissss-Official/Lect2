@@ -13,7 +13,6 @@
 #include "../../base/UITransor.h"
 
 namespace lui {
-    namespace transor {
 
         class UITransorLinux7 : public TranslatorService {
         public:
@@ -63,7 +62,6 @@ namespace lui {
                 outtextxy(static_cast<int>(x), static_cast<int>(y), str);
             }
         };
-    }
 }
 
 #endif //APSISUI2_UITRANSORLINUX7_H

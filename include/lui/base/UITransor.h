@@ -9,7 +9,6 @@
 #include <stdexcept>
 
 namespace lui {
-    namespace transor {
         class TranslatorService {
         public:
             virtual void drawPixelCmd(uint16_t x, uint16_t y, uint32_t color) {
@@ -21,7 +20,6 @@ namespace lui {
             virtual void ClearDeviceCmd() = 0;
             virtual void drawLineCmd(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t color) = 0;
         };
-    }
 }
 
 #endif //APSISUI2_UITRANSOR_H

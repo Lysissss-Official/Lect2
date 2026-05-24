@@ -4,11 +4,11 @@
 // LUI 核心结构定义 — 五层 UI 层级体系
 // ============================================================================
 // 层级从低到高：
-//   lui::ele::Element    — 最小 UI 单元（文本框 / 按钮 / 列表 / 空）
-//   lui::blk::Block      — 元素容器，一组相关元素
-//   lui::pge::Page       — 区块容器，包含滚动、焦点导航、页高切换
-//   lui::scr::Screen     — 显示目标（宽高 + 色彩模式）
-//   lui::app::Application — 应用基类（Native C++ / VM Python）
+//   lui::Element    — 最小 UI 单元（文本框 / 按钮 / 列表 / 空）
+//   lui::Block      — 元素容器，一组相关元素
+//   lui::Page       — 区块容器，包含滚动、焦点导航、页高切换
+//   lui::Screen     — 显示目标（宽高 + 色彩模式）
+//   （Application 独立为 lapp 命名空间，见 include/lapp/Application.h）
 //
 // 坐标系：
 //   逻辑坐标 (logic_*) — 百分比 0.0–100.0，与分辨率无关
@@ -23,6 +23,7 @@
 #define APSISUI2_UISTRUCTURE_H
 
 #include <cstdint>
+#include <mutex>
 #include <random>
 #include <set>
 #include <string>
@@ -72,15 +73,9 @@ namespace lui {
         }
     };
 
-    // 跨命名空间前置声明
-    namespace render { class Render; }
-    namespace ctrller { class CtrllerService; }
-    namespace transor { class TranslatorService; }
-
     // =========================================================================
     // lui::ele — Element 层（最小 UI 单元）
     // =========================================================================
-    namespace ele {
 
         // 元素类型枚举
         enum ElementType {
@@ -153,12 +148,10 @@ namespace lui {
                 return logic_y1 < other.logic_y2 && logic_y2 > other.logic_y1;
             }
         };
-    }
 
     // =========================================================================
     // lui::blk — Block 层（元素容器）
     // =========================================================================
-    namespace blk {
 
         // Block 将一组语义相关的 Element 组织在一起。
         // 典型用法：一个 Block 对应页面上的一个功能区（页眉、按钮组、数据面板等）。
@@ -178,7 +171,7 @@ namespace lui {
             uint16_t phys_x1, phys_y1;
             uint16_t phys_x2, phys_y2;
 
-            std::vector<ele::Element> elements;     // 子元素集合
+            std::vector<Element> elements;     // 子元素集合
             size_t focused_element_index = 0;       // 当前聚焦元素在 elements 中的索引
 
             Block() : logic_x1(0), logic_y1(0), logic_x2(0), logic_y2(0),
@@ -202,18 +195,16 @@ namespace lui {
             }
 
             // 获取当前聚焦的元素指针，若无则返回 nullptr
-            ele::Element* getFocusedElement() {
+            Element* getFocusedElement() {
                 if (focused_element_index < elements.size())
                     return &elements[focused_element_index];
                 return nullptr;
             }
         };
-    }
 
     // =========================================================================
     // lui::pge — Page 层（区块容器 + 焦点导航 + 滚动）
     // =========================================================================
-    namespace pge {
 
         // 页高模式
         //   PAGE_FULL — 全屏页，状态栏较窄
@@ -243,13 +234,18 @@ namespace lui {
             PageHeight height_mode = PAGE_FULL;
             uint16_t status_bar_thickness = STATUS_BAR_FULL;
 
-            std::vector<blk::Block> blocks;          // 子区块集合
-            ele::Element* current_focused = nullptr;  // 当前获得焦点的元素
+            std::vector<Block> blocks;          // 子区块集合
+            Element* current_focused = nullptr;  // 当前获得焦点的元素
 
             // 滚动状态（均为像素单位）
             float    scroll_y    = 0.0f;   // 当前滚动偏移
             uint16_t viewport_h  = 0;      // 视口高度（= 屏幕高度）
             float    max_scroll  = 0.0f;   // 最大可滚动量
+
+            // 页面状态互斥锁。
+            // App 线程修改页面状态（移动焦点等）和 renderd 线程绘制页面
+            // 都会争用此锁。所有 public 写方法内部自动加锁，App 无需手动处理。
+            mutable std::recursive_mutex state_mutex;
 
             Page() { uni_id = IDGenerator<Page>::generate(); }
             ~Page() { IDGenerator<Page>::release(uni_id); }
@@ -258,12 +254,14 @@ namespace lui {
 
             // 切换全屏 / 半屏模式，自动调整状态栏厚度
             void switchHeight() {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 height_mode = (height_mode == PAGE_FULL) ? PAGE_HALF : PAGE_FULL;
                 status_bar_thickness = (height_mode == PAGE_FULL) ? STATUS_BAR_FULL : STATUS_BAR_HALF;
             }
 
             // 更新所有区块物理坐标，重算滚动范围和焦点图
             void updatePhysical(uint16_t screen_width, uint16_t screen_height) {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 viewport_h = screen_height;
                 for (auto& blk : blocks) {
                     blk.updatePhysical(screen_width, screen_height);
@@ -291,7 +289,8 @@ namespace lui {
             }
 
             // 自动滚动使 el 在视口内可见（保留 SCROLL_MARGIN 边距）
-            void scrollToShow(ele::Element* el) {
+            void scrollToShow(Element* el) {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 if (!el) return;
 
                 // 元素当前屏幕坐标（已减去滚动偏移）
@@ -328,7 +327,7 @@ namespace lui {
             // -----------------------------------------------------------------
             void recalculateFocus() {
                 // 收集所有元素，清空旧邻居指针
-                std::vector<ele::Element*> all;
+                std::vector<Element*> all;
                 for (auto& blk : blocks) {
                     for (auto& el : blk.elements) {
                         el.focus_up    = nullptr;
@@ -341,13 +340,13 @@ namespace lui {
 
                 // O(n²) 两两比较 — 每个方向的邻居取几何距离最小者
                 for (size_t i = 0; i < all.size(); ++i) {
-                    ele::Element* a = all[i];
+                    Element* a = all[i];
                     float best_right = 1e9f, best_left = 1e9f;
                     float best_up = 1e9f, best_down = 1e9f;
 
                     for (size_t j = 0; j < all.size(); ++j) {
                         if (i == j) continue;
-                        ele::Element* b = all[j];
+                        Element* b = all[j];
 
                         // 右邻居：b 的左边在 a 右边之右，且 Y 投影重叠
                         if (b->logic_x1 >= a->logic_x2 && a->overlapsVertically(*b)) {
@@ -380,7 +379,8 @@ namespace lui {
             }
 
             // 设置焦点至指定元素（取消旧焦点，设置新焦点，并自动滚动至可见）
-            void setFocus(ele::Element* el) {
+            void setFocus(Element* el) {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 if (current_focused) current_focused->focused = false;
                 current_focused = el;
                 if (current_focused) {
@@ -390,33 +390,37 @@ namespace lui {
             }
 
             // 四向焦点移动（沿预先计算的邻居指针跳转）
+            // 四向焦点移动。
+            // 内部自动加锁保护页面状态，与 renderd 的逐帧绘制互斥。
             bool moveFocusRight() {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 if (!current_focused || !current_focused->focus_right) return false;
                 setFocus(current_focused->focus_right);
                 return true;
             }
             bool moveFocusLeft() {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 if (!current_focused || !current_focused->focus_left) return false;
                 setFocus(current_focused->focus_left);
                 return true;
             }
             bool moveFocusUp() {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 if (!current_focused || !current_focused->focus_up) return false;
                 setFocus(current_focused->focus_up);
                 return true;
             }
             bool moveFocusDown() {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex);
                 if (!current_focused || !current_focused->focus_down) return false;
                 setFocus(current_focused->focus_down);
                 return true;
             }
         };
-    }
 
     // =========================================================================
     // lui::scr — Screen 层（显示目标描述）
     // =========================================================================
-    namespace scr {
 
         // 屏幕色彩模式
         //   SCREEN_BW   — 黑白（1 bit / pixel）
@@ -439,65 +443,16 @@ namespace lui {
             uint16_t height = 0;
             ColorMode color_mode = SCREEN_RGB;
 
-            Screen() { uni_id = IDGenerator<Screen>::generate(); }
-            ~Screen() { IDGenerator<Screen>::release(uni_id); }
-
+            Screen()          { uni_id = IDGenerator<Screen>::generate(); }
+            ~Screen()         { IDGenerator<Screen>::release(uni_id); }
             uint32_t getID() const { return uni_id; }
+
+            // 初始化显示设备（平台相关实现，定义在 src/screen.cpp）
+            void init();
+
+            // 关闭显示设备
+            void close();
         };
-    }
-
-    // =========================================================================
-    // lui::app — Application 层（应用基类）
-    // =========================================================================
-    namespace app {
-
-        // 应用类型
-        //   APP_NATIVE — C++ 原生应用（编译进二进制）
-        //   APP_VM     — Python 脚本应用（由 pocketpy 解释执行）
-        //   APP_UNKNOWN — 未初始化
-        enum ApplicationType {
-            APP_NATIVE  = 0,
-            APP_VM      = 1,
-            APP_UNKNOWN = 2
-        };
-
-        // Application 是 LUI 层级的顶层抽象。
-        //
-        // 每个应用持有：
-        //   - type / vm_path — 运行类型及脚本路径（VM 模式）
-        //   - start_page      — 入口页面
-        //   - 四项服务指针   — Screen / Render / Controller / Translator
-        //
-        // 子类必须实现 app_main()（应用主循环）。
-        // 典型生命周期：
-        //   1. 构造时指定 type 和 start_page
-        //   2. setup() 注入四项服务并构建页面
-        //   3. ThreadMgr 在新线程中调用 app_main()
-        //   4. 析构 → 资源回收
-        class Application {
-        private:
-            uint32_t uni_id;
-
-        public:
-            ApplicationType type  = APP_UNKNOWN;
-            std::string vm_path;                 // VM 模式下的 Python 脚本路径
-            pge::Page* start_page = nullptr;     // 入口页面指针
-
-            // 四项平台服务 — 由 setup() 注入
-            scr::Screen*                screen     = nullptr;  // 显示目标
-            render::Render*             renderer   = nullptr;  // 渲染服务
-            ctrller::CtrllerService*    controller = nullptr;  // 输入控制器
-            transor::TranslatorService* translator = nullptr;  // 绘制转译器
-
-            Application() { uni_id = IDGenerator<Application>::generate(); }
-            virtual ~Application() { IDGenerator<Application>::release(uni_id); }
-
-            // 应用主入口 — 子类必须覆写
-            virtual void app_main() = 0;
-
-            uint32_t getID() const { return uni_id; }
-        };
-    }
 }
 
 #endif //APSISUI2_UISTRUCTURE_H

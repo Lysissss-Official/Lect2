@@ -17,8 +17,6 @@
 
 namespace lui {
     namespace ext {
-        namespace font {
-
             enum FontType {
                 FONT_UNDEFINED = 0,
                 FONT_SYSTEM    = 1,
@@ -68,7 +66,7 @@ namespace lui {
 
                 // --- 基于 Transor 的绘制接口 ---
 
-                void drawChar(lui::transor::TranslatorService* ts,
+                void drawChar(lui::TranslatorService* ts,
                               uint16_t x, uint16_t y, uint32_t color,
                               uint16_t uni) const {
                     if (!ts) return;
@@ -83,7 +81,7 @@ namespace lui {
                     }
                 }
 
-                void drawString(lui::transor::TranslatorService* ts,
+                void drawString(lui::TranslatorService* ts,
                                 uint16_t x, uint16_t y, uint32_t color,
                                 const std::u16string& unistr) const {
                     if (!ts) return;
@@ -114,7 +112,6 @@ namespace lui {
                 }
             };
 
-        } // namespace font
     } // namespace ext
 } // namespace lui
 
