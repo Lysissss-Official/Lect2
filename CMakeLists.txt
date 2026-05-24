@@ -22,6 +22,7 @@ add_executable(ApsisUI2
         apps/demo_app.h
         apps/pyconsole_app.h
         include/lui/extension/font/font_20.h
+        include/lui/extension/font/font_con_24.h
         include/lui/extension/font/FontBase.h
         include/lcore/VMMgr.h
         include/lui/extension/image/ExUIImage.h

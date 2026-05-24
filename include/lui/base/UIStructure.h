@@ -79,10 +79,20 @@ namespace lui {
 
         // 元素类型枚举
         enum ElementType {
-            ELE_TEXTBOX = 0,  // 文本框 — 纯文本显示
+            ELE_TEXTBOX = 0,   // 文本框 — 纯文本显示
             ELE_BUTTON,        // 按钮   — 可交互控件
             ELE_LIST,          // 列表   — 可滚动选择列表
             ELE_EMPTY          // 空占位 — 调试 / 布局占位
+        };
+
+        enum ElementMovement {
+            ELE_FLOAT = 0,    // 浮动   — 根据页面滚动
+            ELE_FIXED         // 固定   — 占据固定位置 层级大于FLOAT
+        };
+
+        enum ElementAccess {
+            ELE_REAL = 0,    // 真实块   — 可聚焦
+            ELE_FAKE         // 虚假块   — 不可聚焦
         };
 
         // Element 是 LUI 层级中的最小渲染与交互单元。
@@ -96,6 +106,8 @@ namespace lui {
 
         public:
             ElementType type;
+            ElementMovement movement;
+            ElementAccess access;
 
             // 逻辑坐标：百分比 0.0–100.0，独立于屏幕分辨率
             float logic_x1, logic_y1;
@@ -116,14 +128,16 @@ namespace lui {
             bool focused = false;      // 当前是否获得焦点
             std::string content;       // 元素文本内容
 
-            Element() : type(ELE_EMPTY), logic_x1(0), logic_y1(0), logic_x2(0), logic_y2(0),
+            Element() : type(ELE_EMPTY), movement(ELE_FLOAT), access(ELE_REAL), logic_x1(0), logic_y1(0), logic_x2(0), logic_y2(0),
                         phys_x1(0), phys_y1(0), phys_x2(0), phys_y2(0) {
                 uni_id = IDGenerator<Element>::generate();
             }
 
             ~Element() { IDGenerator<Element>::release(uni_id); }
 
-            uint32_t getID() const { return uni_id; }
+            uint32_t getID() const {
+                return uni_id;
+            }
 
             // 将逻辑坐标（百分比）转换为物理坐标（像素）
             void updatePhysical(uint16_t screen_width, uint16_t screen_height) {
@@ -181,7 +195,9 @@ namespace lui {
 
             ~Block() { IDGenerator<Block>::release(uni_id); }
 
-            uint32_t getID() const { return uni_id; }
+            uint32_t getID() const {
+                return uni_id;
+            }
 
             // 递归更新自身及所有子元素的物理坐标
             void updatePhysical(uint16_t screen_width, uint16_t screen_height) {
@@ -242,7 +258,7 @@ namespace lui {
             uint16_t viewport_h  = 0;      // 视口高度（= 屏幕高度）
             float    max_scroll  = 0.0f;   // 最大可滚动量
 
-            // 页面状态互斥锁。
+            // 页面状态互斥锁（页面锁）
             // App 线程修改页面状态（移动焦点等）和 renderd 线程绘制页面
             // 都会争用此锁。所有 public 写方法内部自动加锁，App 无需手动处理。
             mutable std::recursive_mutex state_mutex;
@@ -250,7 +266,9 @@ namespace lui {
             Page() { uni_id = IDGenerator<Page>::generate(); }
             ~Page() { IDGenerator<Page>::release(uni_id); }
 
-            uint32_t getID() const { return uni_id; }
+            uint32_t getID() const {
+                return uni_id;
+            }
 
             // 切换全屏 / 半屏模式，自动调整状态栏厚度
             void switchHeight() {
@@ -334,6 +352,8 @@ namespace lui {
                         el.focus_down  = nullptr;
                         el.focus_left  = nullptr;
                         el.focus_right = nullptr;
+                        if (el.access == ELE_FAKE)
+                            continue;
                         all.push_back(&el);
                     }
                 }
@@ -371,10 +391,11 @@ namespace lui {
                     }
                 }
 
-                // 若当前无焦点元素，默认聚焦第一个元素
-                if (!current_focused) {
-                    if (!blocks.empty() && !blocks[0].elements.empty())
-                        setFocus(&blocks[0].elements[0]);
+                // 无焦点或者焦点无效
+                if (!current_focused || current_focused->access== ELE_FAKE) {
+                    current_focused = nullptr;
+                    if (!all.empty())
+                        setFocus(all.front());
                 }
             }
 

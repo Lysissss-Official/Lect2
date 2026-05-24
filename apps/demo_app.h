@@ -18,6 +18,7 @@
 #include "../include/lui/platform/linux7/UITransorLinux7.h"
 #include "../include/lui/platform/linux7/theme/UIRenderApsisUI2.h"
 #include "../include/lui/extension/font/font_20.h"
+#include "../include/lui/extension/font/font_con_24.h"
 
 using namespace lui;
 
@@ -33,7 +34,7 @@ public:
         demo_page.updatePhysical(screen->width, screen->height);
 
         auto* theme_r = dynamic_cast<UIRenderApsisUI2*>(renderer);
-        if (theme_r) theme_r->setFont(&lui::ext::f20);
+        if (theme_r) theme_r->setFont(&lui::ext::fc24);
     }
 
     void app_main() override {
@@ -43,7 +44,7 @@ public:
         auto last_input = clock::now();
 
         while (true) {
-            // 读取缓存输入（ctrllerd 在后台自动刷新）
+            // 读取缓存输入（ctrller_d 在后台自动刷新）
             if (controller->getKB(VK_ESCAPE) == 1) break;
 
             auto now = clock::now();
@@ -207,6 +208,7 @@ private:
             auto addEntry = [&](const char* text, float ly) {
                 Element e;
                 e.type    = ELE_TEXTBOX;
+                e.access  = ELE_FAKE;
                 e.content = text;
                 e.logic_x1 = 5.0f;  e.logic_y1 = ly;
                 e.logic_x2 = 95.0f; e.logic_y2 = ly + 7.0f;

@@ -16,14 +16,14 @@ static const char* svcName(ServiceType t) {
 }
 
 ThreadMgr::ThreadMgr() {
-    foreground_now = 0;
+    foreground_now_ = 0;
 }
 
 ThreadMgr::~ThreadMgr() {
-    for (auto &it : service_table) {
+    for (auto &it : service_table_) {
         stopService(it.first);
     }
-    for (auto &it : app_table) {
+    for (auto &it : app_table_) {
         stopApp(it.first);
     }
 }
@@ -50,16 +50,16 @@ uint32_t ThreadMgr::registerApp(lapp::Application* app) {
 
     runtime.native_thread = nullptr;
 
-    app_table[runtime.app_id] = runtime;
+    app_table_[runtime.app_id] = runtime;
     LOG("App registered  --  ID=" + std::to_string(runtime.app_id));
 
     return runtime.app_id;
 }
 
 void ThreadMgr::startApp(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return;
     }
 
@@ -75,9 +75,9 @@ void ThreadMgr::startApp(uint32_t id) {
 
     runtime.native_thread = new std::thread(
         [this, id]() {
-            auto it = app_table.find(id);
+            auto it = app_table_.find(id);
 
-            if (it == app_table.end()) {
+            if (it == app_table_.end()) {
                 return;
             }
 
@@ -98,9 +98,9 @@ void ThreadMgr::startApp(uint32_t id) {
 }
 
 void ThreadMgr::stopApp(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return;
     }
 
@@ -127,9 +127,9 @@ void ThreadMgr::stopApp(uint32_t id) {
 }
 
 void ThreadMgr::suspendApp(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return;
     }
 
@@ -137,9 +137,9 @@ void ThreadMgr::suspendApp(uint32_t id) {
 }
 
 void ThreadMgr::resumeApp(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return;
     }
 
@@ -147,16 +147,16 @@ void ThreadMgr::resumeApp(uint32_t id) {
 }
 
 void ThreadMgr::switchForeground(uint32_t id) {
-    for (auto &it : app_table) {
+    for (auto &it : app_table_) {
         it.second.foreground = false;
 
         it.second.allow_input = false;
         it.second.allow_render = false;
     }
 
-    auto target = app_table.find(id);
+    auto target = app_table_.find(id);
 
-    if (target == app_table.end()) {
+    if (target == app_table_.end()) {
         return;
     }
 
@@ -165,11 +165,11 @@ void ThreadMgr::switchForeground(uint32_t id) {
     target->second.allow_input = true;
     target->second.allow_render = true;
 
-    foreground_now = id;
+    foreground_now_ = id;
 
     // 前台 App 的 start_page 注入 Render，renderd 只渲染前台页面
     if (target->second.app_ptr && target->second.app_ptr->start_page) {
-        for (auto& [sid, srt] : service_table) {
+        for (auto& [sid, srt] : service_table_) {
             if (srt.type == SERVICE_RENDER) {
                 auto* ren = static_cast<lui::Render*>(srt.service_ptr);
                 ren->setCurrentPage(target->second.app_ptr->start_page);
@@ -182,9 +182,9 @@ void ThreadMgr::switchForeground(uint32_t id) {
 }
 
 bool ThreadMgr::canInput(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return false;
     }
 
@@ -192,9 +192,9 @@ bool ThreadMgr::canInput(uint32_t id) {
 }
 
 bool ThreadMgr::canRender(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return false;
     }
 
@@ -202,9 +202,9 @@ bool ThreadMgr::canRender(uint32_t id) {
 }
 
 AppRuntime* ThreadMgr::getRuntime(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return nullptr;
     }
 
@@ -212,9 +212,9 @@ AppRuntime* ThreadMgr::getRuntime(uint32_t id) {
 }
 
 void ThreadMgr::joinApp(uint32_t id) {
-    auto it = app_table.find(id);
+    auto it = app_table_.find(id);
 
-    if (it == app_table.end()) {
+    if (it == app_table_.end()) {
         return;
     }
 
@@ -240,15 +240,15 @@ uint32_t ThreadMgr::registerService(ServiceType type, void* ptr) {
     runtime.service_ptr = ptr;
     runtime.state       = THREAD_STOPPED;
 
-    service_table[runtime.service_id] = runtime;
+    service_table_[runtime.service_id] = runtime;
     LOG("Service registered  --  " + std::string(svcName(type))
         + " ID=" + std::to_string(runtime.service_id));
     return runtime.service_id;
 }
 
 void ThreadMgr::startService(uint32_t id) {
-    auto it = service_table.find(id);
-    if (it == service_table.end()) return;
+    auto it = service_table_.find(id);
+    if (it == service_table_.end()) return;
 
     ServiceRuntime& rt = it->second;
     if (rt.state == THREAD_RUNNING) return;
@@ -271,8 +271,8 @@ void ThreadMgr::startService(uint32_t id) {
 }
 
 void ThreadMgr::stopService(uint32_t id) {
-    auto it = service_table.find(id);
-    if (it == service_table.end()) return;
+    auto it = service_table_.find(id);
+    if (it == service_table_.end()) return;
 
     ServiceRuntime& rt = it->second;
     if (rt.state == THREAD_STOPPED) return;

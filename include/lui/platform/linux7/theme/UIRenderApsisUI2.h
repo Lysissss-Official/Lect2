@@ -160,7 +160,7 @@ namespace lui {
             // 将 render_requests_pre 队列中所有请求消费完毕后返回。
             // =================================================================
             void renderService() override {
-                for (auto& req : render_requests_now) {
+                for (auto& req : render_requests_now_) {
                     switch (req.type) {
                         case REQ_CHANGE_PAGE:
                             if (ts) ts->ClearDeviceCmd();

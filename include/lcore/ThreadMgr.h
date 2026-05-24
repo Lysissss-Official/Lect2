@@ -73,9 +73,9 @@ namespace lcore {
     class ThreadMgr {
 
     private:
-        std::map<uint32_t, AppRuntime>     app_table;
-        std::map<uint32_t, ServiceRuntime> service_table;
-        uint32_t foreground_now;
+        std::map<uint32_t, AppRuntime>     app_table_;
+        std::map<uint32_t, ServiceRuntime> service_table_;
+        uint32_t foreground_now_;
 
     public:
         ThreadMgr();

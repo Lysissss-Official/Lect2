@@ -50,8 +50,8 @@ namespace lui {
                 std::vector<std::pair<std::string, uint32_t>> args;
             };
 
-            std::queue<RenderRequest> render_requests_pre;
-            std::list<RenderRequest>  render_requests_now;
+            std::queue<RenderRequest> render_requests_pre_;
+            std::list<RenderRequest>  render_requests_now_;
 
             void pushRequest(RequestType type, uint32_t target_id,
                              AnimFunc anim = AnimFunc::ANIM_NONE) {
@@ -61,7 +61,7 @@ namespace lui {
                 req.anime_func = anim;
                 {
                     std::lock_guard<std::mutex> lock(queue_mutex_);
-                    render_requests_pre.push(std::move(req));
+                    render_requests_pre_.push(std::move(req));
                 }
                 cv_.notify_one();
             }
@@ -120,47 +120,58 @@ namespace lui {
             virtual bool hasPendingWork() { return false; }
 
         private:
-            std::mutex queue_mutex_;
-            std::condition_variable cv_;
-            std::thread daemon_thread_;
-            std::atomic<bool> daemon_running_{false};
-            Page* current_page_ = nullptr;
+            std::mutex queue_mutex_;        // 保护渲染请求队列(pre/now)访问的互斥锁（队列锁）
+            std::condition_variable cv_;    // 线程挂起的条件变量
+            std::thread daemon_thread_;     // 守护线程本体
+            std::atomic<bool> daemon_running_{false};   // 线程安全的守护线程运行状态
+            Page* current_page_ = nullptr;  // 当前渲染页面
 
-            void daemonLoop() {
+            void daemonLoop() {             // Renderer_d 守护线程
                 using namespace std::chrono;
 
                 while (daemon_running_.load(std::memory_order_acquire)) {
                     // ---- 等待：有请求到达或动画需要下一帧 ----
                     {
                         std::unique_lock<std::mutex> lock(queue_mutex_);
+                        // 今日有事可做
                         if (hasPendingWork()) {
-                            cv_.wait_for(lock, milliseconds(16), [this] {
-                                return !render_requests_pre.empty()
+                            cv_.wait_for(
+                                lock,             // 睡小憩（）等待最多8ms；wait期间自动释放queue_mutex_，唤醒后重新加锁
+                                milliseconds(8), // 避免CPU空转 超时后渲染下一帧 理论fps = 1000ms / rtime(ms)
+                                [this] {     // 队列有新任务或者线程结束提前结束等待
+                                    return !render_requests_pre_.empty()
                                     || !daemon_running_.load(std::memory_order_acquire);
-                            });
-                        } else {
-                            cv_.wait(lock, [this] {
-                                return !render_requests_pre.empty()
+                                }
+                            );
+                        }
+                        // 今日无事可做
+                        else {
+                            cv_.wait(
+                                lock,             // 睡大觉（）无限等待；wait期间自动释放queue_mutex_，唤醒后重新加锁
+                                [this] {     // 队列有新任务或者线程结束等待
+                                return !render_requests_pre_.empty()
                                     || !daemon_running_.load(std::memory_order_acquire);
                             });
                         }
                         // 消费 pre 队列 → now 列表
-                        while (!render_requests_pre.empty()) {
-                            render_requests_now.push_back(
-                                std::move(render_requests_pre.front()));
-                            render_requests_pre.pop();
+                        // 双缓冲 将主线程提交的请求转移到当前处理列表 在渲染时不占有队列锁时间
+                        while (!render_requests_pre_.empty()) {
+                            render_requests_now_.push_back(
+                                std::move(render_requests_pre_.front()));
+                            render_requests_pre_.pop();
                         }
-                    }
+                    } // queue_mutex_ 作用域
 
+                    // 线程结束信号发出 释放cv_后 退出守护循环
                     if (!daemon_running_.load(std::memory_order_acquire)) break;
 
-                    // ---- 处理请求 ----
-                    if (!render_requests_now.empty()) {
+                    // ---- 处理渲染队列的请求 ----
+                    if (!render_requests_now_.empty()) {
                         renderService();
-                        render_requests_now.clear();
+                        render_requests_now_.clear();
                     }
 
-                    // ---- 渲染一帧 ----
+                    // ---- 渲染新页面 ----
                     // 绘制时持有页面锁，与 App 线程的页面修改互斥
                     if (current_page_ != nullptr) {
                         std::lock_guard lock(current_page_->state_mutex);
