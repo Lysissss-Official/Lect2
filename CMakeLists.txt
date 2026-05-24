@@ -21,6 +21,7 @@ add_executable(ApsisUI2
         include/lui/platform/linux7/theme/UIRenderApsisUI2.h
         apps/demo_app.h
         apps/pyconsole_app.h
+        apps/launcher_app.h
         include/lui/extension/font/font_20.h
         include/lui/extension/font/font_con_24.h
         include/lui/extension/font/FontBase.h
