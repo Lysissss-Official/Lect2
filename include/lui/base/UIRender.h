@@ -88,7 +88,8 @@ namespace lui {
                 current_page_ = page;
                 LOG("Render target page set  --  page=0x"
                     + std::to_string(reinterpret_cast<uintptr_t>(page)));
-                cv_.notify_one();  // 触发首帧渲染
+                pushRequest(REQ_CHANGE_PAGE, page->getID());
+                //cv_.notify_one();  // 触发首帧渲染
             }
 
             // ---- 守护线程生命周期 ----
