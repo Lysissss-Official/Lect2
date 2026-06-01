@@ -19,6 +19,8 @@ namespace lui {
             }
             virtual void ClearDeviceCmd() = 0;
             virtual void drawLineCmd(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t color) = 0;
+            virtual void drawFilledRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
+                                        uint32_t fill_color, uint32_t border_color) = 0;
         };
 }
 

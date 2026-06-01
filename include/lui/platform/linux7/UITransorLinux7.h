@@ -47,9 +47,9 @@ namespace lui {
 
             // Utility: draw a filled rectangle with a border
             void drawFilledRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
-                                COLORREF fill_color, COLORREF border_color) {
-                setfillcolor(fill_color);
-                setlinecolor(border_color);
+                                uint32_t fill_color, uint32_t border_color) override {
+                setfillcolor(static_cast<COLORREF>(fill_color));
+                setlinecolor(static_cast<COLORREF>(border_color));
                 fillrectangle(static_cast<int>(x1), static_cast<int>(y1),
                               static_cast<int>(x2), static_cast<int>(y2));
             }

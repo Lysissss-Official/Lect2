@@ -86,7 +86,7 @@ public:
                     in_el.content = "> " + input_buf;
                 }
                 auto& in_el = page.blocks[0].elements.back();
-                renderer->requestElementRedraw(in_el.getID());
+                renderer->requestReDraw(&in_el);
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(16));

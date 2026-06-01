@@ -17,7 +17,6 @@
 #include "../include/lui/platform/linux7/UICtrllerLinux7.h"
 #include "../include/lui/platform/linux7/UITransorLinux7.h"
 #include "../include/lui/platform/linux7/theme/UIRenderApsisUI2.h"
-#include "../include/lui/extension/font/font_20.h"
 #include "../include/lui/extension/font/font_con_24.h"
 
 using namespace lui;
@@ -68,8 +67,7 @@ public:
                     last_input = now;
                     // 唤醒 renderd 绘制新帧（空闲时 renderd 在 cv_.wait() 挂起）
                     if (demo_page.current_focused) {
-                        renderer->requestElementRedraw(
-                            demo_page.current_focused->getID());
+                        renderer->requestReDraw(demo_page.current_focused);
                     }
                 }
             }

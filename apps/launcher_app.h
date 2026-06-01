@@ -184,7 +184,7 @@ private:
         backtick_debounce_ = false;
         refreshPage();
         thread_mgr_->switchForeground(getID());
-        // requestPageChange 已由 refreshPage() 调用
+        // requestReDraw 已由 refreshPage() 调用
     }
 
     // ---- 页面构建 ----
@@ -199,7 +199,7 @@ private:
             grid_el.focused = true;
         }
         page.updatePhysical(screen->width, screen->height);
-        renderer->requestPageChange(page.getID());
+        renderer->requestReDraw(&page);
     }
 
     void rebuildPage() {
