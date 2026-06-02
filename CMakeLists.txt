@@ -22,12 +22,12 @@ add_executable(ApsisUI2
         apps/demo_app.h
         apps/pyconsole_app.h
         apps/launcher_app.h
-        include/lui/extension/font/font_20.h
         include/lui/extension/font/font_con_24.h
         include/lui/extension/font/FontBase.h
         include/lcore/VMMgr.h
         include/lui/extension/image/ExUIImage.h
         include/lui/extension/font/ExUIFont.h
+        include/lui/platform/linux7/theme/UIHelperApsisUI2.h
 )
 
 target_include_directories(ApsisUI2 PRIVATE
