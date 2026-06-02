@@ -1,3 +1,9 @@
+> **NEO** is a playground branch.  
+> Expect unfinished features, questionable code, and occasional bad ideas.  
+> If it works, that's great. If it doesn't, that's expected.
+
+<br>
+
 <a name="readme-top"></a>
 
 <p align="center">
