@@ -1,3 +1,9 @@
+//
+// Created by WTGAdmin0 2026/06/03.
+//
+// ===================
+// UIStructure 重置版 2
+// ===================
 #ifndef APSISUI2_UISTRUCTURE_H
 #define APSISUI2_UISTRUCTURE_H
 
@@ -5,7 +11,6 @@
 #include <mutex>
 #include <random>
 #include <set>
-#include <string>
 #include <variant>
 #include <vector>
 
@@ -64,6 +69,17 @@ namespace lui::strc {
         strc_type = 15
     };
 
+    enum class DirecIndex : uint8_t {
+        right = 0,
+        up = 1,
+        left = 2,
+        down = 3,
+        up_right = 4,
+        up_left = 5,
+        down_left = 6,
+        down_right = 7
+    };
+
     enum class ColorMode : uint8_t {
         SCREEN_BW   = 0,
         SCREEN_GRAY = 1,
@@ -82,9 +98,85 @@ namespace lui::strc {
         Screen() : width(0), height(0), color_mode(ColorMode::SCREEN_RGB565) {
             uni_id = IDGenerator<Screen>::generate();
         }
-        ~Screen() {
+        virtual ~Screen() {
             IDGenerator<Screen>::release(uni_id);
         }
+
+        Screen(const Screen&) = delete;
+        Screen& operator=(const Screen&) = delete;
+    };
+
+    class Element {
+    private:
+        uint32_t uni_id;  // 全局唯一 ID
+        std::vector<uint32_t> params;
+        std::vector<Element*> children;
+        std::variant<Page*, Element*> father;
+
+    public:
+        bool focused;
+        std::vector<Element*> focus_next;
+
+        Element() : focused(false){
+            uni_id = IDGenerator<Element>::generate();
+            params.resize(16);
+            focus_next.resize(8);
+        }
+        virtual ~Element() {
+            IDGenerator<Element>::release(uni_id);
+        }
+
+        uint32_t& getParam(ParamIndex idx) {
+            return params[static_cast<size_t>(idx)];
+        }
+        const uint32_t& getParam(ParamIndex idx) const {
+            return params[static_cast<size_t>(idx)];
+        }
+        uint32_t getID() const {
+            return uni_id;
+        }
+
+        // parax[logic_pos] ∈ [0,100000]
+        void updatePhysical(uint16_t screen_width, uint16_t screen_height, uint32_t coordinate_scale, bool recursive = true) {
+            if (screen_width > 10000 || screen_height > 10000 || coordinate_scale == 0) {
+                return;
+            }
+            params[static_cast<size_t>(ParamIndex::phys_x1)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_x1)] * screen_width / coordinate_scale
+                );
+
+            params[static_cast<size_t>(ParamIndex::phys_y1)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_y1)] * screen_height / coordinate_scale
+                );
+
+            params[static_cast<size_t>(ParamIndex::phys_x2)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_x2)] * screen_width / coordinate_scale
+                );
+
+            params[static_cast<size_t>(ParamIndex::phys_y2)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_y2)] * screen_height / coordinate_scale
+                );
+
+            if (recursive) {
+                for (auto& child_el : children) {
+                    child_el->updatePhysical(screen_width, screen_height, coordinate_scale);
+                }
+            }
+        }
+
+        bool containsLogical(uint32_t x, uint32_t y) const {
+            return x >= getParam(ParamIndex::logic_x1)
+                && x <= getParam(ParamIndex::logic_x2)
+                && y >= getParam(ParamIndex::logic_y1)
+                && y <= getParam(ParamIndex::logic_y2);
+        }
+
+        Element(const Element&) = delete;
+        Element& operator=(const Element&) = delete;
     };
 
     class Page {
@@ -97,58 +189,73 @@ namespace lui::strc {
         mutable std::recursive_mutex state_mutex;
         Element* focus;
 
+        Page() : focus(nullptr){
+            uni_id = IDGenerator<Page>::generate();
+            params.resize(16);
+        }
+        virtual ~Page() {
+            IDGenerator<Page>::release(uni_id);
+        }
+
         uint32_t getID() const {
             return uni_id;
         }
+
         bool setFocus(Element* el) {
             if (el == nullptr || el == focus) {
                 return false;
             }
             std::lock_guard<std::recursive_mutex> lock(state_mutex);
-            if (focus) focus->focused = false;
+            if (focus) {focus->focused = false;}
             focus = el;
-            if (focus) {
-                focus->focused = true;
-                //scrollToShow(focus);
-            }
+            focus->focused = true;
+            //scrollToShow(focus);
             return true;
         }
-        Page() : focus(nullptr){
-            uni_id = IDGenerator<Page>::generate();
-        }
-        ~Page() {
-            IDGenerator<Page>::release(uni_id);
-        }
-    };
 
-    class Element {
-    private:
-        uint32_t uni_id;  // 全局唯一 ID
-        std::vector<uint32_t> params;
-        std::vector<Element*> children;
-        std::variant<Page*, Element*> father;
+        void updatePhysical(uint16_t screen_width, uint16_t screen_height, uint32_t coordinate_scale, bool recursive = true) {
+            if (screen_width > 10000 || screen_height > 10000 || coordinate_scale == 0) {
+                return;
+            }
+            params[static_cast<size_t>(ParamIndex::phys_x1)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_x1)] * screen_width / coordinate_scale
+                );
 
-    public:
-        bool focused;
-        uint32_t& getParam(ParamIndex idx) {
-            return params[static_cast<size_t>(idx)];
+            params[static_cast<size_t>(ParamIndex::phys_y1)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_y1)] * screen_height / coordinate_scale
+                );
+
+            params[static_cast<size_t>(ParamIndex::phys_x2)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_x2)] * screen_width / coordinate_scale
+                );
+
+            params[static_cast<size_t>(ParamIndex::phys_y2)] =
+                static_cast<uint32_t>(
+                    params[static_cast<size_t>(ParamIndex::logic_y2)] * screen_height / coordinate_scale
+                );
+
+            if (recursive) {
+                for (auto& child_el : children) {
+                    child_el->updatePhysical(screen_width, screen_height, coordinate_scale);
+                }
+            }
         }
 
-        const uint32_t& getParam(ParamIndex idx) const {
-            return params[static_cast<size_t>(idx)];
+        void rebuildFocusMap() const {
+            std::vector<Element*> all_elements;
+            for (auto& child_el : children) {
+                // strc_type 最低位：是否可被聚焦
+                if (child_el->getParam(ParamIndex::strc_type) & 1) {
+                    all_elements.push_back(child_el);
+                }
+            }
         }
 
-        uint32_t getID() const {
-            return uni_id;
-        }
-
-        Element() : focused(false){
-            uni_id = IDGenerator<Element>::generate();
-            params.resize(16);
-        }
-        ~Element() {
-            IDGenerator<Element>::release(uni_id);
-        }
+        Page(const Page&) = delete;
+        Page& operator=(const Page&) = delete;
     };
 }
 
