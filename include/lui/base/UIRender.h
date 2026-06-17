@@ -27,7 +27,7 @@ namespace lui {
         struct RenderRequest {
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now();
             std::chrono::time_point<std::chrono::steady_clock> time_end   = std::chrono::steady_clock::now();
-            std::variant<std::monostate, Page*, Block*, Element*> target_ptr;
+            strc::BasicItem* target_ptr;
             std::function<float(float)> animation_func = [](float x){ return 1.0f; };
             bool is_rf = true;
         };
@@ -48,10 +48,10 @@ namespace lui {
             }
         }
 
-        Page* current_page_ = nullptr;
+        strc::Page* current_page_ = nullptr;
 
     public:
-        void requestReDraw(std::variant<std::monostate, Page*, Block*, Element*> target_ptr,
+        void requestReDraw(strc::BasicItem* target_ptr,
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now(),
             std::chrono::duration<float, std::milli> time_use = std::chrono::duration<float, std::milli>(0),
             std::function<float(float)> animation_func = [](float x){ return 1.0f; },
@@ -71,7 +71,7 @@ namespace lui {
             cv_.notify_one();
         }
 
-        void setCurrentPage(Page* page) {
+        void setCurrentPage(strc::Page* page) {
             current_page_ = page;
             LOG("Render target page set  --  page=0x"
                 + std::to_string(reinterpret_cast<uintptr_t>(page)));
@@ -121,7 +121,7 @@ namespace lui {
                 if (!daemon_running_.load(std::memory_order_acquire)) break;
 
                 if (current_page_) {
-                    std::lock_guard lock(current_page_->state_mutex);
+                    std::lock_guard lock(current_page_->page_mutex);
                     std::lock_guard qlock(queue_mutex_);
                     renderService();
                 }

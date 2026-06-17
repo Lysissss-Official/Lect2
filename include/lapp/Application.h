@@ -36,10 +36,10 @@ namespace lapp {
     public:
         ApplicationType type  = APP_UNKNOWN;
         std::string vm_path;                 // VM 模式的 Python 脚本路径
-        lui::Page* start_page = nullptr;
+        lui::strc::Page* start_page = nullptr;
 
         // 四项平台服务 — 由 setServices() 注入，app_setup() / app_main() 中使用
-        lui::Screen*                screen     = nullptr;
+        lui::strc::Screen*          screen     = nullptr;
         lui::Render*                renderer   = nullptr;
         lui::CtrllerService*        controller = nullptr;
         lui::TranslatorService*     translator = nullptr;
@@ -52,7 +52,7 @@ namespace lapp {
         }
 
         // 注入四项平台服务（在 registerApp 之后、startApp 之前调用）
-        void setServices(lui::Screen* scr, lui::Render* ren,
+        void setServices(lui::strc::Screen* scr, lui::Render* ren,
                          lui::CtrllerService* ctl, lui::TranslatorService* trs) {
             screen     = scr;
             renderer   = ren;
