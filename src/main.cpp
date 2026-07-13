@@ -15,6 +15,7 @@
 //#include "apps/pyconsole_app.h"
 //#include "apps/launcher_app.h"
 #include "apps/demo2.h"
+#include "apps/demo3.h"
 
 int main() {
     // --- Screen（EasyX 窗口）---
@@ -58,6 +59,10 @@ int main() {
     demo2.setServices(&screen,&renderer,&controller,&translator);
     const uint32_t demo2_id = threadMgr.registerApp(&demo2);
 
+    Demo3 demo3;
+    demo3.setServices(&screen,&renderer,&controller,&translator);
+    const uint32_t demo3_id = threadMgr.registerApp(&demo3);
+
     // 启动守护线程
     threadMgr.startService(ren_id);
     threadMgr.startService(ctl_id);
@@ -66,18 +71,19 @@ int main() {
     //threadMgr.startApp(launcher_id);
     //threadMgr.startApp(demo_id);
     //threadMgr.startApp(pycon_id);
-    threadMgr.startApp(demo2_id);
+    //threadMgr.startApp(demo2_id);
+    threadMgr.startApp(demo3_id);
 
     // 等待 app_setup 完成
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
     // 启动台默认前台
     //threadMgr.switchForeground(launcher_id);
-    threadMgr.switchForeground(demo2_id);
+    threadMgr.switchForeground(demo3_id);
 
     // 阻塞直到用户在启动台中按 ESC 退出
     //threadMgr.joinApp(launcher_id);
-    threadMgr.joinApp(demo2_id);
+    threadMgr.joinApp(demo3_id);
 
     // 清理
     //threadMgr.stopApp(demo_id);

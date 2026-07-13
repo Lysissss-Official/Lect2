@@ -1,6 +1,12 @@
+// +=========================+
+// | O B S O L E T E   N O W |
+// +=========================+
+// | The APIs are no longer  |
+// | reserved. Only use      |
+// | before Build 13.        |
+// +=========================+
 //
-// ApsisUI II — LectOS 2 演示应用
-// 展示页面布局、滚动内容、焦点导航和动画焦点过渡。
+// ApsisUI II - Demo
 //
 
 #ifndef APSISUI2_DEMO_APP_H
