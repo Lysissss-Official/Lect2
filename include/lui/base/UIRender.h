@@ -18,6 +18,7 @@
 #include <algorithm>
 
 #include "UIStructure.h"
+#include "UITransor.h"
 #include "lcore/Log.h"
 
 namespace lui {
@@ -65,6 +66,7 @@ namespace lui {
         // 绘制函数必备上下文参数
         struct DrawContext {
             strc::BasicItem& target;
+            TranslatorService& transor;
             ClipRect clip;
             float progress = 1.0f;
         };
@@ -76,6 +78,8 @@ namespace lui {
         );
 
     protected:
+        TranslatorService* transor_ = nullptr;
+
         struct RenderRequest {
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now();
             std::chrono::time_point<std::chrono::steady_clock> time_end   = std::chrono::steady_clock::now();
@@ -127,6 +131,15 @@ namespace lui {
         strc::Page* current_page_ = nullptr;
 
     public:
+        Render() = default;
+
+        explicit Render(TranslatorService* transor)
+            : transor_(transor) {}
+
+        void setTransor(TranslatorService* transor) {
+            transor_ = transor;
+        }
+
         // 兼容接口
         void requestReDraw(strc::BasicItem* target_ptr,
             DrawFunction draw_func = nullptr,
@@ -295,9 +308,10 @@ namespace lui {
                         }
 
                         // 可选的 Theme/自绘函数
-                        if (req.draw_func) {
+                        if (req.draw_func && transor_) {
                             DrawContext context {
                                 .target = *req.target_ptr,
+                                .transor = *transor_,
                                 .clip = {
                                     req.target_ptr->getParam(
                                         strc::ParamIndex::phys_x1

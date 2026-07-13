@@ -6,7 +6,7 @@
 
 #include "graphics.h"   // EasyX: initgraph, closegraph
 
-namespace lui {
+namespace lui::strc {
 
     void Screen::init() {
         initgraph(width, height);

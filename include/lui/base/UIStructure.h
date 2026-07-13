@@ -13,6 +13,7 @@
 #include <set>
 #include <variant>
 #include <vector>
+#include <array>
 
 namespace lui {
     template<typename Tag>
@@ -126,6 +127,22 @@ namespace lui::strc {
             IDGenerator<Screen>::release(uni_id);
         }
 
+        void init();
+        void close();
+
+        uint32_t getID() const {
+            return uni_id;
+        }
+
+        uint32_t& getWidth() {return width;}
+        const uint32_t& getWidth() const {return width;}
+
+        uint32_t& getHeight() {return height;}
+        const uint32_t& getHeight() const {return height;}
+
+        ColorMode& getColorMode() {return color_mode;}
+        const ColorMode& getColorMode() const {return color_mode;}
+
         Screen(const Screen&) = delete;
         Screen& operator=(const Screen&) = delete;
     };
@@ -204,6 +221,16 @@ namespace lui::strc {
 
         const std::vector<BasicItem*>& getChildren() const {
             return children;
+        }
+
+        bool addChild(BasicItem* child) {
+            if (!child || child == this || child->parent) {
+                return false;
+            }
+
+            child->parent = this;
+            children.push_back(child);
+            return true;
         }
     };
 

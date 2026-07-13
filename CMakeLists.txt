@@ -18,7 +18,7 @@ add_executable(ApsisUI2
         include/lui/base/UITransor.h
         include/lui/platform/linux7/UICtrllerLinux7.h
         include/lui/platform/linux7/UITransorLinux7.h
-        include/lui/platform/linux7/theme/UIRenderApsisUI2.h
+        #include/lui/platform/linux7/theme/UIRenderApsisUI2.h
         apps/demo_app.h
         apps/pyconsole_app.h
         apps/launcher_app.h
@@ -27,7 +27,8 @@ add_executable(ApsisUI2
         include/lcore/VMMgr.h
         include/lui/extension/image/ExUIImage.h
         include/lui/extension/font/ExUIFont.h
-        include/lui/platform/linux7/theme/UIHelperApsisUI2.h
+        #include/lui/platform/linux7/theme/UIHelperApsisUI2.h
+        include/lui/theme/ApsisUI2/UIThemeApsisUI2.h
 )
 
 target_include_directories(ApsisUI2 PRIVATE
