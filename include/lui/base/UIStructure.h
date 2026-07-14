@@ -9,48 +9,16 @@
 
 #include <cstdint>
 #include <mutex>
-#include <random>
-#include <set>
-#include <variant>
 #include <vector>
 #include <array>
 
-namespace lui {
-    template<typename Tag>
-    class IDGenerator {
-    private:
-        // 每个 Tag 实例化一份独立 registry（静态局部变量）
-        static std::set<uint32_t>& registry() {
-            static std::set<uint32_t> s;
-            return s;
-        }
+#include "lcore/IDGenerator.h"
 
-    public:
-        static uint32_t generate() {
-            static std::mt19937 rng(std::random_device{}());
-            std::uniform_int_distribution<uint32_t> dist(1, 0xFFFFFFFF);
-
-            auto& used = registry();
-            uint32_t id = dist(rng);
-            while (used.count(id)) {
-                id++;
-                if (id == 0) id = 1;
-            }
-            used.insert(id);
-            return id;
-        }
-
-        static void release(uint32_t id) {
-            registry().erase(id);
-        }
-    };
-}
 
 namespace lui::strc {
 
     class Element;
     class Page;
-    class Screen;
 
     /* -------------
      * strc_type 定义
@@ -103,48 +71,6 @@ namespace lui::strc {
         up_left = 5,
         down_left = 6,
         down_right = 7
-    };
-
-    enum class ColorMode : uint8_t {
-        SCREEN_BW   = 0,    // 黑白双色
-        SCREEN_GRAY = 1,    // 灰度模式
-        SCREEN_RGB565  = 2, // 16位色模式
-        SCREEN_RGB666 = 3,  // 18位色模式
-        SCREEN_RGB888  = 4  // 24位色模式
-    };
-
-    class Screen {
-    private:
-        uint32_t uni_id;
-        uint32_t width;
-        uint32_t height;
-        ColorMode color_mode;
-    public:
-        Screen() : width(0), height(0), color_mode(ColorMode::SCREEN_RGB565) {
-            uni_id = IDGenerator<Screen>::generate();
-        }
-        virtual ~Screen() {
-            IDGenerator<Screen>::release(uni_id);
-        }
-
-        void init();
-        void close();
-
-        uint32_t getID() const {
-            return uni_id;
-        }
-
-        uint32_t& getWidth() {return width;}
-        const uint32_t& getWidth() const {return width;}
-
-        uint32_t& getHeight() {return height;}
-        const uint32_t& getHeight() const {return height;}
-
-        ColorMode& getColorMode() {return color_mode;}
-        const ColorMode& getColorMode() const {return color_mode;}
-
-        Screen(const Screen&) = delete;
-        Screen& operator=(const Screen&) = delete;
     };
 
     class BasicItem {
@@ -241,12 +167,12 @@ namespace lui::strc {
         std::vector<Element*> focus_next;
 
         Element() : focused(false){
-            uni_id = IDGenerator<Element>::generate();
+            uni_id = lcore::IDGenerator<Element>::generate();
             params.resize(16);
             focus_next.resize(8);
         }
         ~Element() override{
-            IDGenerator<Element>::release(uni_id);
+            lcore::IDGenerator<Element>::release(uni_id);
         }
 
         bool containsLogical(uint32_t x, uint32_t y) const {
@@ -266,11 +192,11 @@ namespace lui::strc {
         Element* focus;
 
         Page() : focus(nullptr){
-            uni_id = IDGenerator<Page>::generate();
+            uni_id = lcore::IDGenerator<Page>::generate();
             params.resize(16);
         }
         ~Page() override {
-            IDGenerator<Page>::release(uni_id);
+            lcore::IDGenerator<Page>::release(uni_id);
         }
 
         void scrollToShow(Element* el) {

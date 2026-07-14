@@ -12,7 +12,9 @@
 #define APSISUI2_APPLICATION_H
 
 #include <string>
-#include "../lui/base/UIStructure.h"   // Page, Screen, IDGenerator
+#include "lcore/IDGenerator.h"          // IDGenerator
+#include "lui/base/UIStructure.h"       // Page
+#include "ldevice/screen/DevScreen.h"   // Screen
 
 // 四项平台服务 — 前向声明（成员为指针，不依赖完整类型）
 namespace lui {
@@ -39,20 +41,20 @@ namespace lapp {
         lui::strc::Page* start_page = nullptr;
 
         // 四项平台服务 — 由 setServices() 注入，app_setup() / app_main() 中使用
-        lui::strc::Screen*          screen     = nullptr;
+        ldevice::Screen*          screen     = nullptr;
         lui::Render*                renderer   = nullptr;
         lui::CtrllerService*        controller = nullptr;
         lui::TranslatorService*     translator = nullptr;
 
         Application() {
-            uni_id = lui::IDGenerator<Application>::generate();
+            uni_id = lcore::IDGenerator<Application>::generate();
         }
         virtual ~Application() {
-            lui::IDGenerator<Application>::release(uni_id);
+            lcore::IDGenerator<Application>::release(uni_id);
         }
 
         // 注入四项平台服务（在 registerApp 之后、startApp 之前调用）
-        void setServices(lui::strc::Screen* scr, lui::Render* ren,
+        void setServices(ldevice::Screen* scr, lui::Render* ren,
                          lui::CtrllerService* ctl, lui::TranslatorService* trs) {
             screen     = scr;
             renderer   = ren;

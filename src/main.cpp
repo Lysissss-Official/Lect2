@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "lcore/ThreadMgr.h"
+#include "ldevice/screen/DevScreen.h"
 #include "lapp/Application.h"
 #include "lui/base/UIStructure.h"
 #include "lui/platform/linux7/UICtrllerLinux7.h"
@@ -19,7 +20,7 @@
 
 int main() {
     // --- Screen（EasyX 窗口）---
-    lui::strc::Screen screen;
+    ldevice::Screen screen;
     screen.getWidth()  = 1200;
     screen.getHeight() = 480;
     screen.init();
