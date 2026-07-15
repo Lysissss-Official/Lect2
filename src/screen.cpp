@@ -1,3 +1,4 @@
+/*
 //
 // Screen 平台实现 — EasyX (Windows) 显示设备初始化
 //
@@ -17,3 +18,4 @@ namespace ldevice {
     }
 
 } // namespace lui
+*/

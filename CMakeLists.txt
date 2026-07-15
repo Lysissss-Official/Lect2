@@ -29,6 +29,10 @@ add_executable(ApsisUI2
         include/lui/extension/font/ExUIFont.h
         #include/lui/platform/linux7/theme/UIHelperApsisUI2.h
         include/lui/theme/ApsisUI2/UIThemeApsisUI2.h
+        include/ldevice/screen/DevScreen.h
+        include/ldevice/screen/DevScreenDriver.h
+        include/ldevice/screen/EasyX/EasyXScreenDriver.h
+        include/ldevice/screen/EasyX/EasyXScreenDriver.cpp
 )
 
 target_include_directories(ApsisUI2 PRIVATE

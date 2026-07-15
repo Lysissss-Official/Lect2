@@ -99,7 +99,7 @@ namespace lui::theme::apsis {
                 : data->normal_color;
 
         data->font->drawString(
-            &ctx.transor,
+            &ctx.screen,
             static_cast<uint16_t>(
                 std::max<int32_t>(x, 0)
             ),
@@ -115,7 +115,7 @@ namespace lui::theme::apsis {
         Render::DrawContext& ctx,
         void*
     ) {
-        ctx.transor.drawFilledRect(
+        ctx.screen.getDriver()->drawFilledRectCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -129,7 +129,7 @@ namespace lui::theme::apsis {
         Render::DrawContext& ctx,
         void*
     ) {
-        ctx.transor.drawFilledRect(
+        ctx.screen.getDriver()->drawFilledRectCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -143,7 +143,7 @@ namespace lui::theme::apsis {
         Render::DrawContext& ctx,
         void* extra_data
     ) {
-        ctx.transor.drawFilledRect(
+        ctx.screen.getDriver()->drawFilledRectCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -165,7 +165,7 @@ namespace lui::theme::apsis {
         const bool focused =
             isFocused(ctx);
 
-        ctx.transor.drawFilledRect(
+        ctx.screen.getDriver()->drawFilledRectCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -191,7 +191,7 @@ namespace lui::theme::apsis {
         const bool focused =
             isFocused(ctx);
 
-        ctx.transor.drawFilledRect(
+        ctx.screen.getDriver()->drawFilledRectCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -230,7 +230,7 @@ namespace lui::theme::apsis {
             return;
         }
 
-        ctx.transor.drawLineCmd(
+        ctx.screen.getDriver()->drawLineCmd(
             static_cast<uint16_t>(marker_x),
             static_cast<uint16_t>(marker_y1),
             static_cast<uint16_t>(marker_x),
@@ -248,7 +248,7 @@ namespace lui::theme::apsis {
                 ? color::FOCUS_BORDER
                 : color::ACCENT;
 
-        ctx.transor.drawLineCmd(
+        ctx.screen.getDriver()->drawLineCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -256,7 +256,7 @@ namespace lui::theme::apsis {
             border
         );
 
-        ctx.transor.drawLineCmd(
+        ctx.screen.getDriver()->drawLineCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y2),
             static_cast<uint16_t>(ctx.clip.x2),
@@ -264,7 +264,7 @@ namespace lui::theme::apsis {
             border
         );
 
-        ctx.transor.drawLineCmd(
+        ctx.screen.getDriver()->drawLineCmd(
             static_cast<uint16_t>(ctx.clip.x1),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x1),
@@ -272,7 +272,7 @@ namespace lui::theme::apsis {
             border
         );
 
-        ctx.transor.drawLineCmd(
+        ctx.screen.getDriver()->drawLineCmd(
             static_cast<uint16_t>(ctx.clip.x2),
             static_cast<uint16_t>(ctx.clip.y1),
             static_cast<uint16_t>(ctx.clip.x2),

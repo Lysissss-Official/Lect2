@@ -17,18 +17,27 @@
 //#include "apps/launcher_app.h"
 #include "apps/demo2.h"
 #include "apps/demo3.h"
+#include "ldevice/screen/EasyX/EasyXScreenDriver.h"
 
 int main() {
     // --- Screen（EasyX 窗口）---
     ldevice::Screen screen;
+    ldevice::driver::EasyXScreenDriver easyx_vsd({
+        .width = 1200,
+        .height = 480,
+        .title = L"LectOS 2 | ApsisUI II",
+        .clear_color = 0x101010,
+        .use_batch_draw = false
+    });
     screen.getWidth()  = 1200;
     screen.getHeight() = 480;
-    screen.init();
+    screen.setDriver(&easyx_vsd);
+    screen.getDriver()->initScreenCmd();
 
     // --- Platform services ---
     lui::UICtrllerLinux7  controller;
-    lui::UITransorLinux7  translator;
-    lui::Render  renderer(&translator);
+    //lui::UITransorLinux7  translator;
+    lui::Render  renderer(&screen);
 
     // --- Thread manager ---
     lcore::ThreadMgr threadMgr;
@@ -57,11 +66,11 @@ int main() {
     */
 
     Demo2 demo2;
-    demo2.setServices(&screen,&renderer,&controller,&translator);
+    demo2.setServices(&screen,&renderer,&controller);
     const uint32_t demo2_id = threadMgr.registerApp(&demo2);
 
     Demo3 demo3;
-    demo3.setServices(&screen,&renderer,&controller,&translator);
+    demo3.setServices(&screen,&renderer,&controller);
     const uint32_t demo3_id = threadMgr.registerApp(&demo3);
 
     // 启动守护线程
@@ -92,6 +101,6 @@ int main() {
     threadMgr.stopService(ctl_id);
     threadMgr.stopService(ren_id);
 
-    screen.close();
+    screen.getDriver()->closeScreenCmd();
     return 0;
 }

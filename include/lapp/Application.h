@@ -44,7 +44,7 @@ namespace lapp {
         ldevice::Screen*          screen     = nullptr;
         lui::Render*                renderer   = nullptr;
         lui::CtrllerService*        controller = nullptr;
-        lui::TranslatorService*     translator = nullptr;
+        //lui::TranslatorService*     translator = nullptr;
 
         Application() {
             uni_id = lcore::IDGenerator<Application>::generate();
@@ -55,11 +55,10 @@ namespace lapp {
 
         // 注入四项平台服务（在 registerApp 之后、startApp 之前调用）
         void setServices(ldevice::Screen* scr, lui::Render* ren,
-                         lui::CtrllerService* ctl, lui::TranslatorService* trs) {
+                         lui::CtrllerService* ctl) {
             screen     = scr;
             renderer   = ren;
             controller = ctl;
-            translator = trs;
         }
 
         // App 线程启动时自动调用（在 app_main 之前），子类可选覆写

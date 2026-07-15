@@ -283,7 +283,7 @@ private:
 
         lui::Render::DrawContext context {
             .target = *item,
-            .transor = parent.transor,
+            .screen = parent.screen,
             .clip = clip,
             .progress = parent.progress
         };
