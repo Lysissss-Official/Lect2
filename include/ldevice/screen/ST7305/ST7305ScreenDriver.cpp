@@ -144,7 +144,7 @@ bool ST7305ScreenDriver::initBus() {
 
         bus_config.quadhd_io_num = GPIO_NUM_NC;
 
-        bus_config.max_transfer_sz = static_cast<int>(FRAMEBUFFER_SIZE);
+        bus_config.max_transfer_sz = 4092;
 
         const esp_err_t result =
             spi_bus_initialize(config_.spi_host, &bus_config, SPI_DMA_CH_AUTO);
@@ -205,20 +205,28 @@ void ST7305ScreenDriver::hardwareReset() {
 bool ST7305ScreenDriver::transmit(
     bool data_mode,
     const void* data,
-    std::size_t size
+    std::size_t size,
+    uint32_t flags
 ) {
     if (!spi_device_ || !data || size == 0) {
         return false;
     }
 
-    gpio_set_level(config_.pin_dc, data_mode ? 1 : 0);
+    gpio_set_level(
+        config_.pin_dc,
+        data_mode ? 1 : 0
+    );
 
     spi_transaction_t transaction{};
 
     transaction.length = size * 8;
     transaction.tx_buffer = data;
+    transaction.flags = flags;
 
-    return spi_device_polling_transmit(spi_device_, &transaction) == ESP_OK;
+    return spi_device_polling_transmit(
+        spi_device_,
+        &transaction
+    ) == ESP_OK;
 }
 
 bool ST7305ScreenDriver::sendCommand(
@@ -230,19 +238,39 @@ bool ST7305ScreenDriver::sendCommand(
         return false;
     }
 
-    if (spi_device_acquire_bus(spi_device_, portMAX_DELAY) != ESP_OK) {
+    if (
+        spi_device_acquire_bus(
+            spi_device_,
+            portMAX_DELAY
+        ) != ESP_OK
+    ) {
         return false;
     }
 
-    const bool command_ok = transmit(false, &command, sizeof(command));
+    const uint32_t command_flags =
+        data_size > 0
+            ? SPI_TRANS_CS_KEEP_ACTIVE
+            : 0;
+
+    const bool command_ok = transmit(
+        false,
+        &command,
+        sizeof(command),
+        command_flags
+    );
 
     bool data_ok = true;
 
     if (command_ok && data && data_size > 0) {
-        data_ok = transmit(true, data, data_size);
+        data_ok = transmit(
+            true,
+            data,
+            data_size
+        );
     }
 
     spi_device_release_bus(spi_device_);
+
     return command_ok && data_ok;
 }
 
@@ -582,26 +610,74 @@ bool ST7305ScreenDriver::refreshScreenCmd() {
         ROW_END
     };
 
-    if (!sendCommand(0x2A, column_range, sizeof(column_range))) {
+    if (!sendCommand(
+        0x2A,
+        column_range,
+        sizeof(column_range)
+    )) {
         return false;
     }
 
-    if (!sendCommand(0x2B, row_range, sizeof(row_range))) {
+    if (!sendCommand(
+        0x2B,
+        row_range,
+        sizeof(row_range)
+    )) {
         return false;
     }
 
-    if (spi_device_acquire_bus(spi_device_, portMAX_DELAY) != ESP_OK) {
+    if (
+        spi_device_acquire_bus(
+            spi_device_,
+            portMAX_DELAY
+        ) != ESP_OK
+    ) {
         return false;
     }
+
+    constexpr std::size_t CHUNK_SIZE = 4092;
 
     const uint8_t ram_write = 0x2C;
 
-    const bool command_ok =transmit(false, &ram_write, sizeof(ram_write));
+    // RAMWR 后面还有 framebuffer 数据，因此保持 CS。
+    bool ok = transmit(
+        false,
+        &ram_write,
+        sizeof(ram_write),
+        SPI_TRANS_CS_KEEP_ACTIVE
+    );
 
-    const bool data_ok = command_ok && transmit(true, framebuffer_.data(), framebuffer_.size());
+    std::size_t offset = 0;
+
+    while (ok && offset < framebuffer_.size()) {
+        const std::size_t remaining =
+            framebuffer_.size() - offset;
+
+        const std::size_t chunk_size =
+            std::min(
+                CHUNK_SIZE,
+                remaining
+            );
+
+        const bool is_last =
+            offset + chunk_size >=
+            framebuffer_.size();
+
+        ok = transmit(
+            true,
+            framebuffer_.data() + offset,
+            chunk_size,
+            is_last
+                ? 0
+                : SPI_TRANS_CS_KEEP_ACTIVE
+        );
+
+        offset += chunk_size;
+    }
 
     spi_device_release_bus(spi_device_);
-    return command_ok && data_ok;
+
+    return ok;
 }
 
 bool ST7305ScreenDriver::sleep() {

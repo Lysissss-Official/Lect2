@@ -2,8 +2,8 @@
 // Created by archeart on 2026/7/15.
 //
 
-#ifndef APSISUI2_ST7305SCREENDRIVER_H
-#define APSISUI2_ST7305SCREENDRIVER_H
+#ifndef APSISUI2_ST7305SCREENDRIVERV2_H
+#define APSISUI2_ST7305SCREENDRIVERV2_H
 
 #include <array>
 #include <cstddef>
@@ -12,7 +12,7 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 
-#include "ldevice/DevScreenDriver.h"
+#include "ldevice/screen/DevScreenDriver.h"
 
 namespace ldevice::driver {
 
@@ -79,8 +79,8 @@ private:
      * 这些不是 Screen 的通用描述，而是当前 210×480 模组的
      * ST7305 RAM 排布参数，因此保留在具体驱动内部。
      */
-    static constexpr uint16_t PANEL_WIDTH  = 210;
-    static constexpr uint16_t PANEL_HEIGHT = 480;
+    static constexpr uint16_t PANEL_WIDTH  = 384;
+    static constexpr uint16_t PANEL_HEIGHT = 168;
 
     static constexpr uint16_t RAM_ROWS =
         PANEL_HEIGHT / 2;
@@ -119,7 +119,8 @@ private:
     bool transmit(
         bool data_mode,
         const void* data,
-        std::size_t size
+        std::size_t size,
+        uint32_t flags = 0
     );
 
     bool sendCommand(
@@ -144,4 +145,4 @@ private:
 
 } // namespace ldevice::driver
 
-#endif //APSISUI2_ST7305SCREENDRIVER_H
+#endif //APSISUI2_ST7305SCREENDRIVERV2_H

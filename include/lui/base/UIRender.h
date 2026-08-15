@@ -212,6 +212,17 @@ namespace lui {
             cv_.notify_one();
         }
 
+        void requestAnimate(
+            strc::BasicItem* target_ptr,
+            strc::ParamIndex target_param,
+            int32_t value_end,
+            //FunctionSet w,
+
+            bool is_rf = true
+        ) {
+            // TODO: 加入聚合参数支持
+        }
+
         void setCurrentPage(strc::Page* page) {
             current_page_ = page;
             LOG("Render target page set  --  page=0x"
