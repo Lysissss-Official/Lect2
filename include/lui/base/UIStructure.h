@@ -117,7 +117,7 @@ namespace lui::strc {
     class BasicItem {
     protected:
         uint32_t uni_id = 0;
-        std::vector<int32_t> params;
+        std::array<int32_t, 12> params{};
         std::unique_ptr<std::vector<OptionalParam>> optional_params;
 
         BasicItem* parent = nullptr;
@@ -126,44 +126,135 @@ namespace lui::strc {
     public:
         virtual ~BasicItem() = default;
 
+
+        // -------------------------------
+        // ============ Param ============
+
         int32_t& getParam(ParamIndex idx) {
             return params[static_cast<size_t>(idx)];
         }
+
         [[nodiscard]] const int32_t& getParam(ParamIndex idx) const {
             return params[static_cast<size_t>(idx)];
         }
 
-        void*& getOptionalParam(OptionalParamIndex index) {
+
+        // ---------------------------------------
+        // ============ OptionalParam ============
+
+        bool addOptionalParam(const OptionalParam& opt_param) {
             if (!optional_params) {
                 optional_params = std::make_unique<std::vector<OptionalParam>>();
             }
 
-            for (auto& param : *optional_params) {
-                if (param.index == index) {
-                    return param.value;
+            optional_params->push_back(opt_param);
+            return true;
+        }
+
+        bool removeOptionalParam(OptionalParam* opt_param) {
+            if (!optional_params || !opt_param) {
+                return false;
+            }
+
+            bool removed = false;
+
+            auto it = optional_params->begin();
+
+            while (it != optional_params->end()) {
+
+                if (it->value == opt_param->value &&
+                    it->index == opt_param->index)
+                {
+                    it = optional_params->erase(it);
+                    removed = true;
+                }
+                else {
+                    ++it;
                 }
             }
 
-            optional_params->push_back({
-                .index = index,
-                .value = nullptr
-            });
-
-            return optional_params->back().value;
+            return removed;
         }
-        [[nodiscard]]const void* getOptionalParam(OptionalParamIndex index) const {
+        bool removeOptionalParam(size_t nth) {
+            if (!optional_params || nth>=optional_params->size()) {
+                return false;
+            }
+
+            optional_params->erase(optional_params->begin() + static_cast<std::ptrdiff_t>(nth));
+
+            return true;
+        }
+
+        OptionalParam* getOptionalParam(size_t nth) {
+            if (!optional_params || nth>=optional_params->size()) {
+                return nullptr;
+            }
+
+            return &(*optional_params)[nth];
+        }
+
+        [[nodiscard]]
+        const OptionalParam* getOptionalParam(size_t nth) const{
+            if (!optional_params || nth>=optional_params->size()) {
+                return nullptr;
+            }
+
+            return &(*optional_params)[nth];
+        }
+
+        OptionalParam* getOptionalParam(OptionalParamIndex index, size_t nth) {
             if (!optional_params) {
                 return nullptr;
             }
 
-            for (const auto& param : *optional_params) {
+            size_t cnt = 0;
+            for (auto& param : *optional_params) {
                 if (param.index == index) {
-                    return param.value;
+                    if (cnt == nth) {
+                        return &param;
+                    } else {
+                        cnt++;
+                    }
                 }
             }
 
             return nullptr;
         }
+
+        [[nodiscard]]
+        const OptionalParam* getOptionalParam(OptionalParamIndex index, size_t nth) const {
+            if (!optional_params) {
+                return nullptr;
+            }
+
+            size_t cnt = 0;
+            for (const auto& param : *optional_params) {
+                if (param.index == index) {
+                    if (cnt == nth) {
+                        return &param;
+                    } else {
+                        cnt++;
+                    }
+                }
+            }
+
+            return nullptr;
+        }
+
+        [[nodiscard]]
+        const std::vector<OptionalParam>& getOptionalParams() const {
+            static const std::vector<OptionalParam> empty;
+
+            if (!optional_params) {
+                return empty;
+            }
+
+            return *optional_params;
+        }
+
+
+        // -------------------------------
+        // ============ Basic ============
 
         [[nodiscard]] uint32_t getID() const {
             return uni_id;
@@ -274,13 +365,13 @@ namespace lui::strc {
 
         Element() : focused(false){
             uni_id = lcore::IDGenerator<Element>::generate();
-            params.resize(12);
+            //params.resize(12);
             focus_next.resize(8);
         }
 
         Element(const ItemStyle& style) : focused(false){
             uni_id = lcore::IDGenerator<Element>::generate();
-            params.resize(12);
+            //params.resize(12);
             focus_next.resize(8);
             applyStyle(style);
         }
@@ -324,7 +415,7 @@ namespace lui::strc {
 
         Page() : focus(nullptr){
             uni_id = lcore::IDGenerator<Page>::generate();
-            params.resize(12);
+            //params.resize(12);
         }
         ~Page() override {
             lcore::IDGenerator<Page>::release(uni_id);
@@ -392,7 +483,7 @@ namespace lui::strc {
 
                 // 为同一父节点下的 Element 建立焦点网络
                 for (Element* current : layer_elements) {
-                    std::array<int64_t, 8> best_score;
+                    std::array<int64_t, 8> best_score{};
                     best_score.fill(std::numeric_limits<int64_t>::max());
 
                     // 使用矩形中心进行方向判断 注意放缩了1倍 没有除以2不是真实 Logic 位置！
