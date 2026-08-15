@@ -395,7 +395,7 @@ private:
         ) = y2;
 
         element.getParam(
-            lui::strc::ParamIndex::strc_type
+            lui::strc::ParamIndex::item_cfg
         ) =
             (focusable ? 0x01 : 0x00) |
             0x04;
