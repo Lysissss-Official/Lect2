@@ -18,67 +18,18 @@
 #include <algorithm>
 
 #include "UIStructure.h"
-#include "ldevice/screen/DevScreen.h"
+#include "UITheme.h"
 #include "lcore/Log.h"
 
 namespace lui {
 
     class Render {
     public:
-        struct ClipRect {
-            int32_t x1 = 0;
-            int32_t y1 = 0;
-            int32_t x2 = 0;
-            int32_t y2 = 0;
-
-            bool empty() const {
-                return x2 <= x1 || y2 <= y1;
-            }
-
-            static ClipRect unite(const ClipRect& a, const ClipRect& b) {
-                if (a.empty()) return b;
-                if (b.empty()) return a;
-
-                return {
-                    std::min(a.x1, b.x1),
-                    std::min(a.y1, b.y1),
-                    std::max(a.x2, b.x2),
-                    std::max(a.y2, b.y2)
-                };
-            }
-
-            static ClipRect intersect(const ClipRect& a, const ClipRect& b) {
-                ClipRect result = {
-                    std::max(a.x1, b.x1),
-                    std::max(a.y1, b.y1),
-                    std::min(a.x2, b.x2),
-                    std::min(a.y2, b.y2)
-                };
-
-                if (result.empty()) {
-                    return {};
-                }
-
-                return result;
-            }
-        };
-
-        // 绘制函数必备上下文参数
-        struct DrawContext {
-            strc::BasicItem& target;
-            ldevice::Screen& screen;
-            ClipRect clip;
-            float progress = 1.0f;
-        };
-
-        // 绘制函数传参表
-        using DrawFunction = void (*)(
-            DrawContext& context,
-            void* extra_data
-        );
+        //
 
     protected:
         ldevice::Screen* screen_ = nullptr;
+        lui::theme::Theme* theme_ = nullptr;
 
         struct RenderRequest {
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now();
@@ -93,7 +44,8 @@ namespace lui {
             // 绘制函数
             DrawFunction draw_func = nullptr;
             // 文字、图片、公式树等额外数据
-            void* draw_ex_data = nullptr;
+            // void* draw_ex_data = nullptr;
+            // (已经由 lui::strc 下的 OptionalParam 系统代替)
 
             // 时间函数
             std::function<float(float)> time_func = [](float x){ return 1.0f; };
@@ -130,6 +82,34 @@ namespace lui {
 
         strc::Page* current_page_ = nullptr;
 
+        void drawRecursive(strc::BasicItem* item, ClipRect parent_clip) {
+            if (!item) {
+                return;
+            }
+
+            ClipRect current_clip = {
+                abs2Phys(item->getParam(strc::ParamIndex::abs_x1), screen_->getWidth()),
+                abs2Phys(item->getParam(strc::ParamIndex::abs_y1), screen_->getWidth()),
+                abs2Phys(item->getParam(strc::ParamIndex::abs_x2), screen_->getWidth()),
+                abs2Phys(item->getParam(strc::ParamIndex::abs_y2), screen_->getWidth())
+            };
+
+            DrawContext context {
+                .target = *item,
+                .screen = *screen_,
+                .clip = ClipRect::intersect(current_clip, parent_clip),
+                .progress = 1.0f
+            };
+
+            if (theme_) {
+                theme_->drawFuncCall(context);
+            }
+
+            for (const auto& child : item->getChildren()) {
+                drawRecursive(child.get(), current_clip);
+            }
+        }
+
     public:
         Render() = default;
 
@@ -140,10 +120,14 @@ namespace lui {
             screen_ = screen;
         }
 
+        void setTheme(lui::theme::Theme* theme) {
+            theme_ = theme;
+        }
+
         // 兼容接口
         void requestReDraw(strc::BasicItem* target_ptr,
             DrawFunction draw_func = nullptr,
-            void* draw_ex_data = nullptr,
+            //void* draw_ex_data = nullptr,
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now(),
             bool is_rf = true)
         {
@@ -155,7 +139,7 @@ namespace lui {
             req.target_ptr     = target_ptr;
 
             req.draw_func = draw_func;
-            req.draw_ex_data = draw_ex_data;
+            //req.draw_ex_data = draw_ex_data;
 
             req.time_start     = time_start;
             req.time_end       = time_start;
@@ -172,14 +156,19 @@ namespace lui {
 
         // 支持动画的新接口
         void requestAnimate(
-            strc::BasicItem* target_ptr,
-            strc::ParamIndex target_param,
-            int32_t value_end,
-            DrawFunction draw_func = nullptr,
-            void* draw_ex_data = nullptr,
-            std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now(),
+            // --- 必选参数 ---
+            strc::BasicItem* target_ptr,    // 目标对象
+            strc::ParamIndex target_param,  // 目标对象的目标修改参数
+            int32_t value_end,              // 被修改参数的终值
+
+            // --- 可选参数(留空由Theme自动管理) ---
             std::chrono::duration<float, std::milli> time_use = std::chrono::duration<float, std::milli>(0),
-            std::function<float(float)> animation_func = [](float x) { return 1.0f; },
+            std::function<float(float)> time_func = nullptr,
+            DrawFunction draw_func = nullptr,
+            //void* draw_ex_data = nullptr,
+
+            std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now(),
+
             bool is_rf = true)
         {
             if (!target_ptr) {
@@ -195,11 +184,11 @@ namespace lui {
             req.value_end = value_end;
 
             req.draw_func = draw_func;
-            req.draw_ex_data = draw_ex_data;
+            //req.draw_ex_data = draw_ex_data;
 
             req.time_start = time_start;
             req.time_end =time_start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(time_use);
-            req.time_func = std::move(animation_func);
+            req.time_func = std::move(time_func);
 
             req.is_rf = is_rf;
 
@@ -212,7 +201,7 @@ namespace lui {
             cv_.notify_one();
         }
 
-        void requestAnimate(
+        /*void requestAnimate(
             strc::BasicItem* target_ptr,
             strc::ParamIndex target_param,
             int32_t value_end,
@@ -221,7 +210,7 @@ namespace lui {
             bool is_rf = true
         ) {
             // TODO: 加入聚合参数支持
-        }
+        }*/
 
         void setCurrentPage(strc::Page* page) {
             current_page_ = page;
@@ -276,7 +265,30 @@ namespace lui {
 
                     const auto now = steady_clock::now();
 
+                    static auto last_render = steady_clock::now();
+
+                    const auto render_now = steady_clock::now();
+
+                    const auto dt =
+                        duration_cast<milliseconds>(
+                            render_now - last_render
+                        ).count();
+
+                    if (dt >= 0) {
+                        LOG(
+                            "Render tick dt=" +
+                            std::to_string(dt) +
+                            "ms"
+                        );
+
+                        last_render = render_now;
+                    }
+
                     for (auto& req : render_queue_) {
+                        if (!req.target_ptr) {
+                            continue;
+                        }
+
                         // 尚未开始判断
                         if (now < req.time_start) {
                             continue;
@@ -286,22 +298,37 @@ namespace lui {
                         const bool single_frame =
                             req.time_start == req.time_end;
 
-                        // 真实进程占比 (0~1)
-                        float raw_progress = 1.0f;
+                        // 真实进程占比计算 (0~1)
 
-                        if (!single_frame && now < req.time_end) {
-                            raw_progress =
-                                duration<float>(now - req.time_start).count() /
-                                duration<float>(
-                                    req.time_end - req.time_start
-                                ).count();
+                        // 新接口 由Theme管理
+                        float progress;
+                        if (!req.time_func && theme_) {
+                            progress =
+                                theme_->timeFuncCall(req.time_start, req.time_end, now);
+                        }
+                        // 旧接口/自定义接口
+                        else if (req.time_func){
+                            float raw_progress = 1.0f;
 
-                            raw_progress =
-                                std::clamp(raw_progress, 0.0f, 1.0f);
+                            if (!single_frame && now < req.time_end) {
+                                raw_progress =
+                                    duration<float>(now - req.time_start).count() /
+                                    duration<float>(
+                                        req.time_end - req.time_start
+                                    ).count();
+
+                                raw_progress =
+                                    std::clamp(raw_progress, 0.0f, 1.0f);
+                            }
+
+                            progress =
+                                req.time_func(raw_progress);
+                        }
+                        // 降级
+                        else {
+                            progress = 1.0f;
                         }
 
-                        const float progress =
-                            req.time_func(raw_progress);
 
                         // 可选的参数变化
                         if (req.target_param.has_value()) {
@@ -318,33 +345,66 @@ namespace lui {
                             req.target_ptr->getParam(req.target_param.value()) = value;
                         }
 
+
                         // 可选的 Theme/自绘函数
-                        if (req.draw_func && screen_) {
+                        if (screen_) {
+                            // 刷新 abs 坐标
+                            if (req.target_ptr->getParent()) {
+                                req.target_ptr->updateAbsolute(
+                                    req.target_ptr->getParent()->getParam(strc::ParamIndex::abs_x1),
+                                    req.target_ptr->getParent()->getParam(strc::ParamIndex::abs_y1)
+                                );
+                            }
+                            else {
+                                current_page_->updateAbsolute();
+                            }
+
+                            ClipRect current_clip = {
+                                abs2Phys(req.target_ptr->getParam(strc::ParamIndex::abs_x1), screen_->getWidth()),
+                                abs2Phys(req.target_ptr->getParam(strc::ParamIndex::abs_y1), screen_->getWidth()),
+                                abs2Phys(req.target_ptr->getParam(strc::ParamIndex::abs_x2), screen_->getWidth()),
+                                abs2Phys(req.target_ptr->getParam(strc::ParamIndex::abs_y2), screen_->getWidth())
+                            };
+
+                            ClipRect parent_clip = current_clip;
+
+                            if (req.target_ptr->getParent()) {
+                                parent_clip = {
+                                    abs2Phys(req.target_ptr->getParent()->getParam(strc::ParamIndex::abs_x1), screen_->getWidth()),
+                                    abs2Phys(req.target_ptr->getParent()->getParam(strc::ParamIndex::abs_y1), screen_->getWidth()),
+                                    abs2Phys(req.target_ptr->getParent()->getParam(strc::ParamIndex::abs_x2), screen_->getWidth()),
+                                    abs2Phys(req.target_ptr->getParent()->getParam(strc::ParamIndex::abs_y2), screen_->getWidth())
+                                };
+                            }
+
+                            // 绘制所需的上下文内容
                             DrawContext context {
                                 .target = *req.target_ptr,
                                 .screen = *screen_,
-                                .clip = {
-                                    req.target_ptr->getParam(
-                                        strc::ParamIndex::phys_x1
-                                    ),
-                                    req.target_ptr->getParam(
-                                        strc::ParamIndex::phys_y1
-                                    ),
-                                    req.target_ptr->getParam(
-                                        strc::ParamIndex::phys_x2
-                                    ),
-                                    req.target_ptr->getParam(
-                                        strc::ParamIndex::phys_y2
-                                    )
-                                },
+                                .clip = ClipRect::intersect(current_clip,parent_clip),
                                 .progress = progress
                             };
 
-                            req.draw_func(
-                                context,
-                                req.draw_ex_data
-                            );
+                            // 绘制接口调用
+                            // 新接口 由Theme管理
+                            if (!req.draw_func && theme_) {
+                                theme_->drawFuncCall(context);
+                                if (req.is_rf) {
+                                    for (const auto& child : req.target_ptr->getChildren()) {
+                                        drawRecursive(child.get(), current_clip);
+                                    }
+                                }
+                            }
+                            // 旧接口/自定义接口
+                            else if (req.draw_func) {
+                                req.draw_func(context);
+                            }
+                            // 降级
+                            else {
+                                // ...?
+                            }
                         }
+
 
                         // 生命周期标记
                         if (single_frame) {
@@ -367,7 +427,18 @@ namespace lui {
                             auto wait = duration_cast<milliseconds>(nearest - now);
                             if (wait > milliseconds(8))
                                 wait = milliseconds(8);
-                            cv_.wait_for(lock, wait);
+                            const auto wait_start = steady_clock::now();
+                            //cv_.wait_for(lock, wait); Ohh, ITS BAD. ITS JUST BAD. We have a 22ms instead of 8.
+                            const auto wait_end = steady_clock::now();
+                            LOG(
+                                "wait=" +
+                                std::to_string(
+                                    duration<float, std::milli>(
+                                        wait_end - wait_start
+                                    ).count()
+                                ) +
+                                "ms"
+                            );
                         }
                     }
                 }

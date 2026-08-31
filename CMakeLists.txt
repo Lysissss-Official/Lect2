@@ -19,16 +19,16 @@ add_executable(ApsisUI2
         include/lui/platform/linux7/UICtrllerLinux7.h
         include/lui/platform/linux7/UITransorLinux7.h
         #include/lui/platform/linux7/theme/UIRenderApsisUI2.h
-        apps/demo_app.h
-        apps/pyconsole_app.h
-        apps/launcher_app.h
+        #apps/demo_app.h
+        #apps/pyconsole_app.h
+        #apps/launcher_app.h
         include/lui/extension/font/font_con_24.h
         include/lui/extension/font/FontBase.h
         include/lcore/VMMgr.h
         include/lui/extension/image/ExUIImage.h
         include/lui/extension/font/ExUIFont.h
         #include/lui/platform/linux7/theme/UIHelperApsisUI2.h
-        include/lui/theme/ApsisUI2/UIThemeApsisUI2.h
+        #include/lui/theme/ApsisUI2/UIThemeApsisUI2.h
         include/ldevice/screen/DevScreen.h
         include/ldevice/screen/DevScreenDriver.h
         include/ldevice/screen/EasyX/EasyXScreenDriver.h

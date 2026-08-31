@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "lcore/IDGenerator.h"
+#include "ldevice/screen/DevScreen.h"
 
 
 namespace lui::strc {
@@ -26,7 +27,7 @@ namespace lui::strc {
     class Page;
 
     /* -------------
-     * strc_type 定义
+     * item_cfg 定义
      * -------------
      * 最高位
      * P
@@ -50,15 +51,21 @@ namespace lui::strc {
      */
 
     // 基本参数索引
+    // (x1, y1) = 左上角坐标
+    // (x2, y2) = 右下角坐标
+
+    // 注：以下rel和abs坐标都基于Logic坐标系（屏幕空间=>0-10000）
+    //     映射为Phys坐标系（屏幕空间=>屏幕分辨率）见Abs2Phys函数
+
     enum class ParamIndex : uint16_t {
-        logic_x1 = 0,   // 逻辑X1坐标
-        logic_y1 = 1,   // 逻辑Y1坐标
-        logic_x2 = 2,   // 逻辑X2坐标
-        logic_y2 = 3,   // 逻辑Y2坐标
-        phys_x1 = 4,    // 物理X1坐标
-        phys_y1 = 5,    // 物理Y1坐标
-        phys_x2 = 6,    // 物理X2坐标
-        phys_y2 = 7,    // 物理Y2坐标
+        rel_x1 = 0,   // 相对X1坐标（相对父节点左上角坐标）
+        rel_y1 = 1,   // 相对Y1坐标
+        rel_x2 = 2,   // 相对X2坐标
+        rel_y2 = 3,   // 相对Y2坐标
+        abs_x1 = 4,    // 绝对X1坐标（相对页面左上角坐标）
+        abs_y1 = 5,    // 绝对Y1坐标
+        abs_x2 = 6,    // 绝对X2坐标
+        abs_y2 = 7,    // 绝对Y2坐标
         scroll_x = 8,  // X轴方向滚动逻辑量
         scroll_y = 9,  // Y轴方向滚动逻辑量
         item_typ = 10,  // 控件类型
@@ -260,15 +267,11 @@ namespace lui::strc {
             return uni_id;
         }
 
-        void updatePhysical(
-            uint16_t screen_width, uint16_t screen_height, uint32_t coordinate_scale,
-            bool recursive = true, int32_t delta_logic_x = 0, int32_t delta_logic_y = 0
+        void updateAbsolute(
+            int32_t delta_abs_x = 0,
+            int32_t delta_abs_y = 0,
+            bool recursive = true
         ) {
-
-            if (screen_width > 10000 || screen_height > 10000 || coordinate_scale == 0) {
-                return;
-            }
-
             int32_t scroll_x = 0;
             int32_t scroll_y = 0;
 
@@ -277,34 +280,42 @@ namespace lui::strc {
                 scroll_y = parent->getParam(ParamIndex::scroll_y);
             }
 
-            int32_t base_logic_x = delta_logic_x - scroll_x;
-            int32_t base_logic_y = delta_logic_y - scroll_y;
+            int32_t base_x = delta_abs_x - scroll_x;
+            int32_t base_y = delta_abs_y - scroll_y;
 
-            params[static_cast<size_t>(ParamIndex::phys_x1)] =
+            params[static_cast<size_t>(ParamIndex::abs_x1)] =
                 static_cast<int32_t>(
-                    (base_logic_x + getParam(ParamIndex::logic_x1)) * screen_width / coordinate_scale
+                    (base_x + getParam(ParamIndex::rel_x1))
                 );
 
-            params[static_cast<size_t>(ParamIndex::phys_y1)] =
+            params[static_cast<size_t>(ParamIndex::abs_y1)] =
                 static_cast<int32_t>(
-                    (base_logic_y + getParam(ParamIndex::logic_y1)) * screen_height / coordinate_scale
+                    (base_y + getParam(ParamIndex::rel_y1))
                 );
 
-            params[static_cast<size_t>(ParamIndex::phys_x2)] =
+            params[static_cast<size_t>(ParamIndex::abs_x2)] =
                 static_cast<int32_t>(
-                    (base_logic_x + getParam(ParamIndex::logic_x2)) * screen_width / coordinate_scale
+                    (base_x + getParam(ParamIndex::rel_x2))
                 );
 
-            params[static_cast<size_t>(ParamIndex::phys_y2)] =
+            params[static_cast<size_t>(ParamIndex::abs_y2)] =
                 static_cast<int32_t>(
-                    (base_logic_y + getParam(ParamIndex::logic_y2)) * screen_height / coordinate_scale
+                    (base_y + getParam(ParamIndex::rel_y2))
                 );
 
             if (recursive) {
                 for (auto& child_el : children) {
-                    int32_t dlt_lgc_x_next = base_logic_x + getParam(ParamIndex::logic_x1);
-                    int32_t dlt_lgc_y_next = base_logic_y + getParam(ParamIndex::logic_y1);
-                    child_el->updatePhysical(screen_width, screen_height, coordinate_scale, recursive, dlt_lgc_x_next, dlt_lgc_y_next);
+                    const int32_t dlt_abs_x_next =
+                        base_x + getParam(ParamIndex::rel_x1);
+
+                    const int32_t dlt_abs_y_next =
+                        base_y + getParam(ParamIndex::rel_y1);
+
+                    child_el->updateAbsolute(
+                        dlt_abs_x_next,
+                        dlt_abs_y_next,
+                        recursive
+                    );
                 }
             }
         }
@@ -381,10 +392,10 @@ namespace lui::strc {
         }
 
         void applyStyle(const ItemStyle& style) {
-            getParam(ParamIndex::logic_x1) = style.lx1;
-            getParam(ParamIndex::logic_y1) = style.ly1;
-            getParam(ParamIndex::logic_x2) = style.lx2;
-            getParam(ParamIndex::logic_y2) = style.ly2;
+            getParam(ParamIndex::rel_x1) = style.lx1;
+            getParam(ParamIndex::rel_y1) = style.ly1;
+            getParam(ParamIndex::rel_x2) = style.lx2;
+            getParam(ParamIndex::rel_y2) = style.ly2;
 
             //getParam(ParamIndex::fg_color) = style.fg_clr;
             //getParam(ParamIndex::bg_color) = style.bg_clr;
@@ -398,10 +409,10 @@ namespace lui::strc {
         }
 
         [[nodiscard]] bool containsLogical(uint32_t x, uint32_t y) const {
-            return x >= getParam(ParamIndex::logic_x1)
-                && x <= getParam(ParamIndex::logic_x2)
-                && y >= getParam(ParamIndex::logic_y1)
-                && y <= getParam(ParamIndex::logic_y2);
+            return x >= getParam(ParamIndex::rel_x1)
+                && x <= getParam(ParamIndex::rel_x2)
+                && y >= getParam(ParamIndex::rel_y1)
+                && y <= getParam(ParamIndex::rel_y2);
         }
 
         Element(const Element&) = delete;
@@ -489,18 +500,18 @@ namespace lui::strc {
                     // 使用矩形中心进行方向判断 注意放缩了1倍 没有除以2不是真实 Logic 位置！
                     const int64_t current_center_x =
                         static_cast<int64_t>(
-                            current->getParam(ParamIndex::logic_x1)
+                            current->getParam(ParamIndex::rel_x1)
                         ) +
                         static_cast<int64_t>(
-                            current->getParam(ParamIndex::logic_x2)
+                            current->getParam(ParamIndex::rel_x2)
                         );
 
                     const int64_t current_center_y =
                         static_cast<int64_t>(
-                            current->getParam(ParamIndex::logic_y1)
+                            current->getParam(ParamIndex::rel_y1)
                         ) +
                         static_cast<int64_t>(
-                            current->getParam(ParamIndex::logic_y2)
+                            current->getParam(ParamIndex::rel_y2)
                         );
 
                     for (Element* candidate : layer_elements) {
@@ -510,18 +521,18 @@ namespace lui::strc {
 
                         const int64_t candidate_center_x =
                             static_cast<int64_t>(
-                                candidate->getParam(ParamIndex::logic_x1)
+                                candidate->getParam(ParamIndex::rel_x1)
                             ) +
                             static_cast<int64_t>(
-                                candidate->getParam(ParamIndex::logic_x2)
+                                candidate->getParam(ParamIndex::rel_x2)
                             );
 
                         const int64_t candidate_center_y =
                             static_cast<int64_t>(
-                                candidate->getParam(ParamIndex::logic_y1)
+                                candidate->getParam(ParamIndex::rel_y1)
                             ) +
                             static_cast<int64_t>(
-                                candidate->getParam(ParamIndex::logic_y2)
+                                candidate->getParam(ParamIndex::rel_y2)
                             );
 
                         const int64_t delta_x =
@@ -718,6 +729,70 @@ namespace lui::strc {
         child->parent = this;
         children.push_back(std::move(child));
         return true;
+    }
+}
+
+namespace lui {
+    struct ClipRect {
+        int32_t phys_x1 = 0;
+        int32_t phys_y1 = 0;
+        int32_t phys_x2 = 0;
+        int32_t phys_y2 = 0;
+
+        bool empty() const {
+            return phys_x2 <= phys_x1 || phys_y2 <= phys_y1;
+        }
+
+        static ClipRect unite(const ClipRect& a, const ClipRect& b) {
+            if (a.empty()) return b;
+            if (b.empty()) return a;
+
+            return {
+                std::min(a.phys_x1, b.phys_x1),
+                std::min(a.phys_y1, b.phys_y1),
+                std::max(a.phys_x2, b.phys_x2),
+                std::max(a.phys_y2, b.phys_y2)
+            };
+        }
+
+        static ClipRect intersect(const ClipRect& a, const ClipRect& b) {
+            ClipRect result = {
+                std::max(a.phys_x1, b.phys_x1),
+                std::max(a.phys_y1, b.phys_y1),
+                std::min(a.phys_x2, b.phys_x2),
+                std::min(a.phys_y2, b.phys_y2)
+            };
+
+            if (result.empty()) {
+                return {};
+            }
+
+            return result;
+        }
+    };
+
+    // 绘制函数必备上下文参数
+    struct DrawContext {
+        strc::BasicItem& target;
+        ldevice::Screen& screen;
+        ClipRect clip;
+        float progress = 1.0f;
+    };
+
+    // 绘制函数传参表
+    using DrawFunction = void (*)(
+        DrawContext& context
+    );
+
+    // 放缩Logic坐标系到Phys坐标系
+    // abs_pos: 原始Logic坐标系 abs坐标
+    // coordinate_scale: 10000(Logic)对应的屏幕像素(Phys)
+    inline int32_t abs2Phys(int32_t abs_pos, uint32_t coordinate_scale) {
+        return static_cast<int32_t>(
+            static_cast<float>(abs_pos) *
+            static_cast<float>(coordinate_scale) /
+            10000.0f
+        );
     }
 }
 

@@ -10,13 +10,14 @@
 #include "lapp/Application.h"
 #include "lui/base/UIStructure.h"
 #include "lui/platform/linux7/UICtrllerLinux7.h"
-#include "lui/platform/linux7/UITransorLinux7.h"
+//#include "lui/platform/linux7/UITransorLinux7.h"
 //#include "lui/platform/linux7/theme/UIRenderApsisUI2.h"
 //#include "apps/demo_app.h"
 //#include "apps/pyconsole_app.h"
 //#include "apps/launcher_app.h"
-#include "apps/demo2.h"
+//#include "apps/demo2.h"
 //#include "apps/demo3.h"
+#include "apps/demo5.h"
 #include "ldevice/screen/EasyX/EasyXScreenDriver.h"
 
 int main() {
@@ -65,9 +66,9 @@ int main() {
     launcher.addEntry("pocketpy Console", pycon_id);
     */
 
-    Demo2 demo2;
-    demo2.setServices(&screen,&renderer,&controller);
-    const uint32_t demo2_id = threadMgr.registerApp(&demo2);
+    Demo5 demo5;
+    demo5.setServices(&screen,&renderer,&controller);
+    const uint32_t demo2_id = threadMgr.registerApp(&demo5);
 
     //Demo3 demo3;
     //demo3.setServices(&screen,&renderer,&controller);

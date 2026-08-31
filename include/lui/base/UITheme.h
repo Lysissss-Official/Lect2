@@ -5,15 +5,21 @@
 #ifndef APSISUI2_UITHEME_H
 #define APSISUI2_UITHEME_H
 
-#include "UIRender.h"
-
-
+#include "UIStructure.h"
 
 namespace lui::theme {
     class Theme {
     public:
         virtual ~Theme() = default;
-        virtual bool drawFuncCall( Render::DrawContext& context ) = 0;
+        virtual bool drawFuncCall( lui::DrawContext& context ) = 0;
+        virtual float timeFuncCall(
+            std::chrono::time_point<std::chrono::steady_clock> start,
+            std::chrono::time_point<std::chrono::steady_clock> end,
+            std::chrono::time_point<std::chrono::steady_clock> now
+            )
+        {
+            return 1.0f;
+        }
     };
 }
 
