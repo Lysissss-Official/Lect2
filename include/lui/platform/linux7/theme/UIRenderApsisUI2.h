@@ -140,7 +140,7 @@ namespace lui {
 
                 // 检查是否需要清屏（Page* 请求）
                 bool clear_screen = false;
-                for (auto& req : render_queue_) {
+                for (auto& req : rendering_queue_) {
                     if (std::holds_alternative<Page*>(req.target_ptr)) {
                         clear_screen = true;
                         break;

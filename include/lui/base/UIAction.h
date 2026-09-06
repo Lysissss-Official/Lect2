@@ -70,7 +70,7 @@ namespace lui::action {
 
         // TODO: 加入 Page 全局 Margin 统筹 删除递归处理 Scroll
 
-
+        /*
         LOG(
             "element=" +
             std::to_string(el->getID()) +
@@ -102,7 +102,7 @@ namespace lui::action {
             " viewport=" +
             std::to_string(viewport_height)
         );
-
+        */
 
         re->requestAnimate(
             el_parent,

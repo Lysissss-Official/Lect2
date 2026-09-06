@@ -18,6 +18,7 @@
 //#include "apps/demo2.h"
 //#include "apps/demo3.h"
 #include "apps/demo5.h"
+#include "apps/demo6.h"
 #include "ldevice/screen/EasyX/EasyXScreenDriver.h"
 
 int main() {
@@ -66,9 +67,9 @@ int main() {
     launcher.addEntry("pocketpy Console", pycon_id);
     */
 
-    Demo5 demo5;
-    demo5.setServices(&screen,&renderer,&controller);
-    const uint32_t demo2_id = threadMgr.registerApp(&demo5);
+    Demo6 demo6;
+    demo6.setServices(&screen,&renderer,&controller);
+    const uint32_t demo6_id = threadMgr.registerApp(&demo6);
 
     //Demo3 demo3;
     //demo3.setServices(&screen,&renderer,&controller);
@@ -82,7 +83,7 @@ int main() {
     //threadMgr.startApp(launcher_id);
     //threadMgr.startApp(demo_id);
     //threadMgr.startApp(pycon_id);
-    threadMgr.startApp(demo2_id);
+    threadMgr.startApp(demo6_id);
     //threadMgr.startApp(demo3_id);
 
     // 等待 app_setup 完成
@@ -90,11 +91,11 @@ int main() {
 
     // 启动台默认前台
     //threadMgr.switchForeground(launcher_id);
-    threadMgr.switchForeground(demo2_id);
+    threadMgr.switchForeground(demo6_id);
 
     // 阻塞直到用户在启动台中按 ESC 退出
     //threadMgr.joinApp(launcher_id);
-    threadMgr.joinApp(demo2_id);
+    threadMgr.joinApp(demo6_id);
 
     // 清理
     //threadMgr.stopApp(demo_id);

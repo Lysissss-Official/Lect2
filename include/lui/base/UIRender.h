@@ -16,6 +16,7 @@
 #include <thread>
 #include <variant>
 #include <algorithm>
+#include <unordered_map>
 
 #include "UIStructure.h"
 #include "UITheme.h"
@@ -53,6 +54,8 @@ namespace lui {
             bool is_rf = true;
             bool rendered_once = false;
             bool final_rendered = false;
+
+            uint32_t generation = 0;
         };
 
         // Event堆的比较函数
@@ -62,12 +65,62 @@ namespace lui {
             }
         };
 
-        std::vector<RenderRequest> render_queue_;
+        // 已准备/进行处理的渲染请求队列
+        std::vector<RenderRequest> rendering_queue_;
 
+        // 未处理的渲染请求队列
+        // 注：在渲染过程中锁 queue_mutex 长期被占用 中途加入的请求试图加入导致锁竞争
+        //    取消锁限制会导致 vector 同读同写等 UB 产生!
+        std::vector<RenderRequest> pending_rendering_queue_;
+
+        // pending_rendering_queue_ 的保护锁
+        std::recursive_mutex pending_queue_mutex_;
+
+        // 对象-参数对
+        struct AnimationKey {
+            strc::BasicItem* target;
+            strc::ParamIndex param;
+
+            bool operator==(const AnimationKey& other) const {
+                return target == other.target
+                    && param == other.param;
+            }
+        };
+
+        // 对象-参数对的哈希函数
+        struct AnimationKeyHash {
+            size_t operator()(const AnimationKey& key) const noexcept {
+                const size_t h1 =
+                    std::hash<strc::BasicItem*>{}(key.target);
+
+                const size_t h2 =
+                    std::hash<uint16_t>{}(
+                        static_cast<uint16_t>(key.param)
+                    );
+
+                return h1 ^ (h2 << 1);
+            }
+        };
+
+        // 请求代际更新表
+        std::unordered_map<
+            AnimationKey,
+            uint32_t,
+            AnimationKeyHash
+        > animation_generations_;
+
+        // animation_generations_ 的保护锁
+        std::recursive_mutex animation_gen_mutex_;
+
+        // 清除过期请求
         void popExpired() {
+            std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
+
             auto now = std::chrono::steady_clock::now();
-            while (!render_queue_.empty() && render_queue_.front().time_end <= now) {
-                const auto& req_0 = render_queue_.front();
+
+            while (!rendering_queue_.empty() && rendering_queue_.front().time_end <= now) {
+
+                const auto& req_0 = rendering_queue_.front();
                 const bool is_single_frame = req_0.time_start == req_0.time_end;
                 const bool can_remove = is_single_frame? req_0.rendered_once: (req_0.time_end <= now && req_0.final_rendered);
 
@@ -75,13 +128,47 @@ namespace lui {
                     break;
                 }
 
-                std::pop_heap(render_queue_.begin(), render_queue_.end(), CmpByTimeEnd{});
-                render_queue_.pop_back();
+                std::pop_heap(
+                    rendering_queue_.begin(),
+                    rendering_queue_.end(),
+                    CmpByTimeEnd{}
+                );
+
+                rendering_queue_.pop_back();
             }
         }
 
+        // 加入新请求
+        void collectPending() {
+            std::vector<RenderRequest> pending_q_temp;
+
+            {
+                std::lock_guard<std::recursive_mutex> lock(pending_queue_mutex_);
+                pending_q_temp.swap(pending_rendering_queue_);
+            }
+
+            {
+                std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
+                for (auto& pending_req : pending_q_temp) {
+                    rendering_queue_.push_back(std::move(pending_req));
+
+                    std::push_heap(
+                        rendering_queue_.begin(),
+                        rendering_queue_.end(),
+                        CmpByTimeEnd{}
+                    );
+                }
+            }
+        }
+
+        // 当前渲染页面
         strc::Page* current_page_ = nullptr;
 
+        ClipRect screen_clip_ = {
+            0, 0, 0, 0
+        };
+
+        // 递归绘制
         void drawRecursive(strc::BasicItem* item, ClipRect parent_clip) {
             if (!item) {
                 return;
@@ -97,7 +184,11 @@ namespace lui {
             DrawContext context {
                 .target = *item,
                 .screen = *screen_,
-                .clip = ClipRect::intersect(current_clip, parent_clip),
+                .clip =
+                    ClipRect::intersect(
+                    ClipRect::intersect(current_clip,parent_clip),
+                    screen_clip_
+                ),
                 .progress = 1.0f
             };
 
@@ -113,14 +204,31 @@ namespace lui {
     public:
         Render() = default;
 
-        explicit Render(ldevice::Screen* screen)
-            : screen_(screen) {}
+        explicit Render(ldevice::Screen* screen) {
+            setScreen(screen);
+        }
 
         void setScreen(ldevice::Screen* screen) {
+            // TODO: screen_clip_/screen_加锁 可能的多线程同读写！（ETA：二次更新增加多屏幕/分屏支持时）
             screen_ = screen;
+
+            if (screen_) {
+                screen_clip_ = {
+                    0,
+                    0,
+                    static_cast<int32_t>(screen_->getWidth()),
+                    static_cast<int32_t>(screen_->getHeight())
+                };
+            }
+            else {
+                screen_clip_ = {
+                    0, 0, 0, 0
+                };
+            }
         }
 
         void setTheme(lui::theme::Theme* theme) {
+            // TODO: theme_加锁 可能的多线程同读写！（ETA：二次更新增加多屏幕/分屏支持时）
             theme_ = theme;
         }
 
@@ -147,9 +255,10 @@ namespace lui {
             req.is_rf          = is_rf;
 
             {
-                std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
-                render_queue_.push_back(std::move(req));
-                std::push_heap(render_queue_.begin(), render_queue_.end(), CmpByTimeEnd{});
+                // 加入缓冲队列
+                std::lock_guard<std::recursive_mutex> lock(pending_queue_mutex_);
+                pending_rendering_queue_.push_back(std::move(req));
+                //std::push_heap(rendering_queue_.begin(), rendering_queue_.end(), CmpByTimeEnd{});
             }
             cv_.notify_one();
         }
@@ -193,10 +302,18 @@ namespace lui {
             req.is_rf = is_rf;
 
             {
-                std::lock_guard<std::recursive_mutex> lock(queue_mutex_);
-                render_queue_.push_back(std::move(req));
-                std::push_heap(render_queue_.begin(), render_queue_.end(), CmpByTimeEnd{});
+                // 更新代际表
+                std::lock_guard<std::recursive_mutex> lock(animation_gen_mutex_);
+                req.generation = ++animation_generations_[{target_ptr, target_param}];
             }
+
+            {
+                // 加入缓冲队列
+                std::lock_guard<std::recursive_mutex> lock(pending_queue_mutex_);
+                pending_rendering_queue_.push_back(std::move(req));
+                //std::push_heap(pending_rendering_queue_.begin(), pending_rendering_queue_.end(), CmpByTimeEnd{});
+            }
+
 
             cv_.notify_one();
         }
@@ -236,7 +353,7 @@ namespace lui {
             }
         }
 
-    private:
+    protected:
         std::recursive_mutex queue_mutex_;
         std::condition_variable_any cv_;
         std::thread daemon_thread_;
@@ -246,16 +363,24 @@ namespace lui {
             using namespace std::chrono;
 
             while (daemon_running_.load(std::memory_order_acquire)) {
-                {
-                    std::unique_lock<std::recursive_mutex> lock(queue_mutex_);
-                    popExpired();
-                    if (render_queue_.empty()) {
+
+                // 增减渲染队列新旧请求
+                collectPending();
+                popExpired();
+
+                // 渲染队列为空挂起
+                if (rendering_queue_.empty()) {
+                    {
+                        std::unique_lock<std::recursive_mutex> lock(pending_queue_mutex_);
                         cv_.wait(lock, [this] {
-                            return !render_queue_.empty()
+                            return !rendering_queue_.empty()
+                                || !pending_rendering_queue_.empty()
                                 || !daemon_running_.load(std::memory_order_acquire);
                         });
-                        popExpired();
                     }
+
+                    collectPending();
+                    popExpired();
                 }
                 if (!daemon_running_.load(std::memory_order_acquire)) break;
 
@@ -265,6 +390,7 @@ namespace lui {
 
                     const auto now = steady_clock::now();
 
+                    //
                     static auto last_render = steady_clock::now();
 
                     const auto render_now = steady_clock::now();
@@ -276,30 +402,93 @@ namespace lui {
 
                     if (dt >= 0) {
                         LOG(
-                            "Render tick dt=" +
+                            "Render loop tick dt=" +
                             std::to_string(dt) +
                             "ms"
                         );
 
                         last_render = render_now;
                     }
+                    //
 
-                    for (auto& req : render_queue_) {
+                    /*
+                    LOG(
+                        "RR QUEUE size=" +
+                        std::to_string(rendering_queue_.size())
+                    );
+                    */
+
+                    const auto render_start = steady_clock::now();
+
+                    for (auto& req : rendering_queue_) {
+                        /*
+                        LOG(
+                            "RR: element=" +
+                            std::to_string(reinterpret_cast<uintptr_t>(req.target_ptr)) +
+                            " param=" +
+                            (
+                                req.target_param
+                                    ? std::to_string(static_cast<uint16_t>(*req.target_param))
+                                    : "none"
+                            ) +
+                            " gen=" +
+                            std::to_string(req.generation) +
+                            " start=" +
+                            std::to_string(req.value_start) +
+                            " end=" +
+                            std::to_string(req.value_end)
+                        );
+                        */
+                        // 空指针保护
                         if (!req.target_ptr) {
                             continue;
                         }
+
 
                         // 尚未开始判断
                         if (now < req.time_start) {
                             continue;
                         }
 
+
+                        // 代际覆盖机制
+                        // it -> first = key = {target_ptr, target_param}
+                        // it -> second = generation
+                        if (req.target_param) /* req.target_param 是 std::optional! */ {
+                            const AnimationKey key {
+                                req.target_ptr,
+                                *req.target_param
+                            };
+
+                            std::lock_guard<std::recursive_mutex> lock(animation_gen_mutex_);
+
+                            const auto it = animation_generations_.find(key);
+
+                            // 被更新的动画取代
+                            if (it != animation_generations_.end() && req.generation != it->second) {
+                                /*
+                                LOG(
+                                    "RR: SKIP stale element=" +
+                                    std::to_string(reinterpret_cast<uintptr_t>(req.target_ptr)) +
+                                    " req_gen=" +
+                                    std::to_string(req.generation) +
+                                    " current_gen=" +
+                                    std::to_string(it->second)
+                                );
+                                */
+                                // 懒惰失效
+                                req.final_rendered = true;
+                                continue;
+                            }
+                        }
+
+
                         // 单帧刷新判断
                         const bool single_frame =
                             req.time_start == req.time_end;
 
-                        // 真实进程占比计算 (0~1)
 
+                        // 真实进程占比计算 (0~1)
                         // 新接口 由Theme管理
                         float progress;
                         if (!req.time_func && theme_) {
@@ -342,6 +531,19 @@ namespace lui {
                                     static_cast<float>(delta) * progress
                                 );
 
+                            /*
+                            LOG(
+                                "RR: RENDER element=" +
+                                std::to_string(reinterpret_cast<uintptr_t>(req.target_ptr)) +
+                                " gen=" +
+                                std::to_string(req.generation) +
+                                " progress=" +
+                                std::to_string(progress) +
+                                " value=" +
+                                std::to_string(value)
+                            );
+                            */
+
                             req.target_ptr->getParam(req.target_param.value()) = value;
                         }
 
@@ -381,7 +583,11 @@ namespace lui {
                             DrawContext context {
                                 .target = *req.target_ptr,
                                 .screen = *screen_,
-                                .clip = ClipRect::intersect(current_clip,parent_clip),
+                                .clip =
+                                    ClipRect::intersect(
+                                        ClipRect::intersect(current_clip,parent_clip),
+                                        screen_clip_
+                                    ),
                                 .progress = progress
                             };
 
@@ -414,22 +620,40 @@ namespace lui {
                             req.final_rendered = true;
                         }
                     }
+
+                    const auto render_end = steady_clock::now();
+
+                    //
+                    LOG(
+                        "render=" +
+                        std::to_string(
+                        duration<float, std::milli>(
+                            render_end - render_start
+                            ).count()
+                        ) +
+                        "ms"
+                    );
+                    //
                 }
 
                 {
                     std::unique_lock<std::recursive_mutex> lock(queue_mutex_);
                     popExpired();
-                    if (!render_queue_.empty()
+                    if (!rendering_queue_.empty()
                         && daemon_running_.load(std::memory_order_acquire)) {
-                        auto nearest = render_queue_.front().time_end;
+                        auto nearest = rendering_queue_.front().time_end;
                         auto now = steady_clock::now();
                         if (nearest > now) {
                             auto wait = duration_cast<milliseconds>(nearest - now);
-                            if (wait > milliseconds(8))
-                                wait = milliseconds(8);
-                            const auto wait_start = steady_clock::now();
-                            //cv_.wait_for(lock, wait); Ohh, ITS BAD. ITS JUST BAD. We have a 22ms instead of 8.
-                            const auto wait_end = steady_clock::now();
+
+                            if (wait > milliseconds(1))
+                                wait = milliseconds(1); // USE 1ms instead of 8ms.
+
+                            //const auto wait_start = steady_clock::now();
+                            cv_.wait_for(lock, wait);// Ohh, ITS BAD. ITS JUST BAD. We have a 22ms when waiting for 8ms.
+                            //const auto wait_end = steady_clock::now();
+
+                            /*
                             LOG(
                                 "wait=" +
                                 std::to_string(
@@ -439,6 +663,7 @@ namespace lui {
                                 ) +
                                 "ms"
                             );
+                            */
                         }
                     }
                 }
