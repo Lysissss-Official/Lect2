@@ -63,27 +63,16 @@ Common operations have helpers, but lower-level interfaces remain available when
 ┌──────────────────────────────────────────────────────────────┐
 │                         Application                          │
 │                                                              │
-│                    lapp::Application                         │
+│                      lapp::Application                       │
 │                                                              │
 │   Native applications                                        │
 │   VM applications                                            │
 └──────────────────────────────┬───────────────────────────────┘
                                │
-                               ▼
-┌──────────────────────────────────────────────────────────────┐
-│                           lcore                              │
-│                                                              │
-│   ThreadMgr     Application and service management           │
-│   IDGenerator   Runtime object IDs                           │
-│   Log           Logging                                      │
-│   Path          Path abstraction                             │
-│   VMMgr         Virtual-machine management                   │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
                ┌───────────────┴─────────────────┐
                ▼                                 ▼
 ┌──────────────────────────────┐    ┌──────────────────────────┐
-│         UI Framework         │    │         ldevice          │
+│        UI Framework          │    │         ldevice          │
 │                              │    │                          │
 │   UIStructure                │    │   Resource               │
 │   UIAction                   │    │   ResourceMgr            │
@@ -96,14 +85,25 @@ Common operations have helpers, but lower-level interfaces remain available when
 │   Render requests            │    │                          │
 └──────────────┬───────────────┘    └────────────┬─────────────┘
                │                                 │
-               └────────────────┬────────────────┘
-                                ▼
-                     ┌─────────────────────┐
-                     │      Platform       │
-                     │                     │
-                     │   Linux / Desktop   │
-                     │   ESP32-S3 / IDF    │
-                     └─────────────────────┘
+               └───────────────┬─────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│                            lcore                             │
+│                                                              │
+│   ThreadMgr     Application and service management           │
+│   IDGenerator   Runtime object IDs                           │
+│   Log           Logging                                      │
+│   Path          Path abstraction                             │
+│   VMMgr         Virtual-machine management                   │
+└──────────────────────────────┬───────────────────────────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │      Platform       │
+                    │                     │
+                    │   Linux / Desktop   │
+                    │   ESP32-S3 / IDF    │
+                    └─────────────────────┘
 ```
 
 The dependency direction is intentionally small:
@@ -572,6 +572,17 @@ Lect 2 is developed together with the CalXis ecosystem.
 - **CalXis** — the programmable calculator project
 - **SCalRR** — the mathematical backend of Lect 2
 - **Lect0** — the previous-generation Lect implementation
+
+------------------------------------------------------------------------
+
+## Third-Party Notices
+
+This project uses the following third-party libraries:
+
+- **PocketPy** — MIT License, Copyright (c) blueloveTH  
+  https://github.com/pocketpy/pocketpy
+
+- **EasyX** — Free to use. The core library does not provide an explicit open-source license. See [`third_party/EasyX/NOTICE.md`](third_party/easyx/NOTICE.md) for the original copyright notice.
 
 ------------------------------------------------------------------------
 
