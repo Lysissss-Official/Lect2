@@ -8,10 +8,14 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
+#include <string>
+#include <utility>
+#include <cstddef>
 
 #include "lcore/IDGenerator.h"
 
-namespace lui::ext {
+namespace lui::ext::font {
+
     class Font {
     public:
         enum class PixelFormat : uint8_t {
@@ -40,19 +44,35 @@ namespace lui::ext {
 
     private:
         uint32_t uni_id_;
+
+        std::string name_;
+        uint16_t size_;
+
+        std::string family_;
+        std::string style_;
+
         std::vector<Glyph> glyphs_;
-        PixelFormat pixelFormat_;
+        PixelFormat pixel_format_;
 
         // 每行占用的字节数
         [[nodiscard]] uint16_t rowBytes(uint16_t w) const {
-            return static_cast<uint16_t>((w * static_cast<uint16_t>(pixelFormat_) + 7) / 8);
+            return static_cast<uint16_t>((w * static_cast<uint16_t>(pixel_format_) + 7) / 8);
         }
 
     public:
-        Font(std::vector<Glyph> glyphs, PixelFormat pixelFormat)
+        Font(std::vector<Glyph> glyphs,
+            PixelFormat pixel_format,
+            std::string name,
+            uint16_t size,
+            std::string style = "",
+            std::string family = "")
             : uni_id_(lcore::IDGenerator<Font>::generate()),
               glyphs_(std::move(glyphs)),
-              pixelFormat_(pixelFormat)
+              pixel_format_(pixel_format),
+              name_(std::move(name)),
+              size_(size),
+              family_(std::move(family)),
+              style_(std::move(style))
         {
             std::sort(
                 glyphs_.begin(),
@@ -69,6 +89,26 @@ namespace lui::ext {
 
         [[nodiscard]] uint32_t getID() const {
             return uni_id_;
+        }
+
+        [[nodiscard]] const std::string& getName() const {
+            return name_;
+        }
+
+        [[nodiscard]] const std::string& getFamily() const {
+            return family_;
+        }
+
+        [[nodiscard]] const std::string& getStyle() const {
+            return style_;
+        }
+
+        [[nodiscard]] uint16_t getSize() const {
+            return size_;
+        }
+
+        [[nodiscard]] PixelFormat getPixelFormat() const {
+            return pixel_format_;
         }
 
         [[nodiscard]] std::size_t getGlyphCount() const {
@@ -90,6 +130,10 @@ namespace lui::ext {
 
             return &(*it);
         }
+
+    };
+
+    class TTFFont{
 
     };
 }
