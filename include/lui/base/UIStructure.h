@@ -23,8 +23,8 @@
 
 namespace lui::strc {
 
-    class Element;
-    class Page;
+    class CanvasNode;
+    class Easel;
 
     /* -------------
      * item_cfg 定义
@@ -97,11 +97,12 @@ namespace lui::strc {
         down_right = 7
     };
 
-    // TODO: 完善 OptionalParam 使用 OptionalParamIndex 获得名称支持？ / uint16_t 获得任意索引支持？
+
     struct OptionalParam {
-        OptionalParamIndex index = OptionalParamIndex::none;
-        void* value = nullptr;
+        OptionalParamIndex index;
+        uint32_t value;
     };
+
 
     struct ItemStyle {
         int32_t lx1 = 0;
@@ -121,17 +122,17 @@ namespace lui::strc {
         int32_t item_cfg = 0;
     };
 
-    class BasicItem {
+    class BasicNode {
     protected:
         uint32_t uni_id = 0;
         std::array<int32_t, 12> params{};
         std::unique_ptr<std::vector<OptionalParam>> optional_params;
 
-        BasicItem* parent = nullptr;
-        std::vector<std::unique_ptr<BasicItem>> children;
+        BasicNode* parent = nullptr;
+        std::vector<std::unique_ptr<BasicNode>> children;
 
     public:
-        virtual ~BasicItem() = default;
+        virtual ~BasicNode() = default;
 
 
         // -------------------------------
@@ -320,27 +321,27 @@ namespace lui::strc {
             }
         }
 
-        [[nodiscard]] BasicItem* getParent() const { return parent; }
+        [[nodiscard]] BasicNode* getParent() const { return parent; }
 
         [[nodiscard]] size_t getChildCount() const {
             return children.size();
         }
 
-        [[nodiscard]] BasicItem* getChild(size_t index) const {
+        [[nodiscard]] BasicNode* getChild(size_t index) const {
             return index < children.size() ? children[index].get() : nullptr;
         }
 
-        [[nodiscard]] const std::vector<std::unique_ptr<BasicItem>>& getChildren() const {
+        [[nodiscard]] const std::vector<std::unique_ptr<BasicNode>>& getChildren() const {
             return children;
         }
 
         template<typename T, typename... Args>
-        requires std::derived_from<T, Element>
+        // requires std::derived_from<T, CanvasNode> // C++20
         T* createChild(Args&&... args);
 
-        bool addChild(std::unique_ptr<Element> child);
+        bool addChild(std::unique_ptr<CanvasNode> child);
 
-        bool destroyChild(BasicItem* child) {
+        bool destroyChild(BasicNode* child) {
             if (!child) {
                 return false;
             }
@@ -349,7 +350,7 @@ namespace lui::strc {
                 std::find_if(
                     children.begin(),
                     children.end(),
-                    [child](const std::unique_ptr<BasicItem>& item) {
+                    [child](const std::unique_ptr<BasicNode>& item) {
                         return item.get() == child;
                     }
                 );
@@ -368,27 +369,27 @@ namespace lui::strc {
         }
     };
 
-    class Element : public BasicItem {
-        friend class Page;
+    class CanvasNode : public BasicNode {
+        friend class Easel;
     public:
         bool focused;
-        std::vector<Element*> focus_next;
+        std::vector<CanvasNode*> focus_next;
 
-        Element() : focused(false){
-            uni_id = lcore::IDGenerator<Element>::generate();
+        CanvasNode() : focused(false){
+            uni_id = lcore::IDGenerator<CanvasNode>::generate();
             //params.resize(12);
             focus_next.resize(8);
         }
 
-        Element(const ItemStyle& style) : focused(false){
-            uni_id = lcore::IDGenerator<Element>::generate();
+        CanvasNode(const ItemStyle& style) : focused(false){
+            uni_id = lcore::IDGenerator<CanvasNode>::generate();
             //params.resize(12);
             focus_next.resize(8);
             applyStyle(style);
         }
 
-        ~Element() override{
-            lcore::IDGenerator<Element>::release(uni_id);
+        ~CanvasNode() override{
+            lcore::IDGenerator<CanvasNode>::release(uni_id);
         }
 
         void applyStyle(const ItemStyle& style) {
@@ -415,26 +416,26 @@ namespace lui::strc {
                 && y <= getParam(ParamIndex::rel_y2);
         }
 
-        Element(const Element&) = delete;
-        Element& operator=(const Element&) = delete;
+        CanvasNode(const CanvasNode&) = delete;
+        CanvasNode& operator=(const CanvasNode&) = delete;
     };
 
-    class Page : public BasicItem {
+    class Easel : public BasicNode {
     public:
         mutable std::recursive_mutex page_mutex;
-        Element* focus;
+        CanvasNode* focus;
 
-        Page() : focus(nullptr){
-            uni_id = lcore::IDGenerator<Page>::generate();
+        Easel() : focus(nullptr){
+            uni_id = lcore::IDGenerator<Easel>::generate();
             //params.resize(12);
         }
-        ~Page() override {
-            lcore::IDGenerator<Page>::release(uni_id);
+        ~Easel() override {
+            lcore::IDGenerator<Easel>::release(uni_id);
         }
 
         // TODO: 增加对超大元素的元素内滚动支持函数 scrollwithDirection(DirectIndex direction)
 
-        bool setFocus(Element* el) {
+        bool setFocus(CanvasNode* el) {
             if (el == nullptr || el == focus) {
                 return false;
             }
@@ -446,7 +447,7 @@ namespace lui::strc {
             return true;
         }
 
-        [[nodiscard]] Element* nextFocus(DirecIndex direction) const {
+        [[nodiscard]] CanvasNode* nextFocus(DirecIndex direction) const {
             if (!focus) {
                 return nullptr;
             }
@@ -466,20 +467,20 @@ namespace lui::strc {
         void rebuildFocusMap() {
             std::lock_guard<std::recursive_mutex> lock(page_mutex);
 
-            auto rebuildLayer = [&](auto&& self, BasicItem* container) -> void {
+            auto rebuildLayer = [&](auto&& self, BasicNode* container) -> void {
                 if (!container) return;
 
-                std::vector<Element*> layer_elements;
+                std::vector<CanvasNode*> layer_elements;
 
                 // 只收集 container 的直接子 Element  每个 container 对应一张独立的 FocusMap
                 for (const auto& child : container->getChildren()) {
-                    auto* child_element = dynamic_cast<Element*>(child.get());
+                    auto* child_element = dynamic_cast<CanvasNode*>(child.get());
                     if (!child_element) {
                         continue;
                     }
 
                     // 无论当前是否可聚焦都先清除旧焦点映射
-                    for (Element*& next : child_element->focus_next) {
+                    for (CanvasNode*& next : child_element->focus_next) {
                         next = nullptr;
                     }
 
@@ -493,7 +494,7 @@ namespace lui::strc {
                 }
 
                 // 为同一父节点下的 Element 建立焦点网络
-                for (Element* current : layer_elements) {
+                for (CanvasNode* current : layer_elements) {
                     std::array<int64_t, 8> best_score{};
                     best_score.fill(std::numeric_limits<int64_t>::max());
 
@@ -514,7 +515,7 @@ namespace lui::strc {
                             current->getParam(ParamIndex::rel_y2)
                         );
 
-                    for (Element* candidate : layer_elements) {
+                    for (CanvasNode* candidate : layer_elements) {
                         if (candidate == current) {
                             continue;
                         }
@@ -670,7 +671,7 @@ namespace lui::strc {
             }
 
             for (const auto& child : focus->getChildren()) {
-                auto* child_element = dynamic_cast<Element*>(child.get());
+                auto* child_element = dynamic_cast<CanvasNode*>(child.get());
 
                 if (!child_element) {
                     continue;
@@ -692,7 +693,7 @@ namespace lui::strc {
                 return false;
             }
 
-            auto* parent_element = dynamic_cast<Element*>(focus->getParent());
+            auto* parent_element = dynamic_cast<CanvasNode*>(focus->getParent());
 
             if (!parent_element) {
                 return false;
@@ -701,13 +702,18 @@ namespace lui::strc {
             return setFocus(parent_element);
         }
 
-        Page(const Page&) = delete;
-        Page& operator=(const Page&) = delete;
+        Easel(const Easel&) = delete;
+        Easel& operator=(const Easel&) = delete;
     };
 
     template<typename T, typename... Args>
-    requires std::derived_from<T, Element>
-    inline T* BasicItem::createChild(Args&&... args) {
+    // requires std::derived_from<T, CanvasNode> // C++20
+    inline T* BasicNode::createChild(Args&&... args) {
+        static_assert(
+            std::is_base_of<CanvasNode, T>::value,
+            "T must derive from CanvasNode"
+        );
+
         auto child = std::make_unique<T>(
             std::forward<Args>(args)...
         );
@@ -721,7 +727,7 @@ namespace lui::strc {
         return result;
     }
 
-    inline bool BasicItem::addChild(std::unique_ptr<Element> child) {
+    inline bool BasicNode::addChild(std::unique_ptr<CanvasNode> child) {
         if (!child || child.get() == this || child->parent) {
             return false;
         }
@@ -773,7 +779,7 @@ namespace lui {
 
     // 绘制函数必备上下文参数
     struct DrawContext {
-        strc::BasicItem& target;
+        strc::BasicNode& target;
         ldevice::Screen& screen;
         ClipRect clip;
         float progress = 1.0f;

@@ -33,7 +33,7 @@ namespace lui::theme {
                 // ...
                 default: {
                     const auto* element =
-                        dynamic_cast<const strc::Element*>(&context.target);
+                        dynamic_cast<const strc::CanvasNode*>(&context.target);
 
                     const bool focused =
                         element && element->focused;

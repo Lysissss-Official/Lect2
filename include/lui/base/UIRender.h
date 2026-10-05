@@ -17,6 +17,7 @@
 #include <variant>
 #include <algorithm>
 #include <unordered_map>
+#include <optional>
 
 #include "UIStructure.h"
 #include "UITheme.h"
@@ -36,7 +37,7 @@ namespace lui {
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now();
             std::chrono::time_point<std::chrono::steady_clock> time_end   = std::chrono::steady_clock::now();
 
-            strc::BasicItem* target_ptr;
+            strc::BasicNode* target_ptr = nullptr;
             std::optional<strc::ParamIndex> target_param;
 
             int32_t value_start = 0;
@@ -78,7 +79,7 @@ namespace lui {
 
         // 对象-参数对
         struct AnimationKey {
-            strc::BasicItem* target;
+            strc::BasicNode* target;
             strc::ParamIndex param;
 
             bool operator==(const AnimationKey& other) const {
@@ -91,7 +92,7 @@ namespace lui {
         struct AnimationKeyHash {
             size_t operator()(const AnimationKey& key) const noexcept {
                 const size_t h1 =
-                    std::hash<strc::BasicItem*>{}(key.target);
+                    std::hash<strc::BasicNode*>{}(key.target);
 
                 const size_t h2 =
                     std::hash<uint16_t>{}(
@@ -162,14 +163,14 @@ namespace lui {
         }
 
         // 当前渲染页面
-        strc::Page* current_page_ = nullptr;
+        strc::Easel* current_page_ = nullptr;
 
         ClipRect screen_clip_ = {
             0, 0, 0, 0
         };
 
         // 递归绘制
-        void drawRecursive(strc::BasicItem* item, ClipRect parent_clip) {
+        void drawRecursive(strc::BasicNode* item, ClipRect parent_clip) {
             if (!item) {
                 return;
             }
@@ -233,7 +234,7 @@ namespace lui {
         }
 
         // 兼容接口
-        void requestReDraw(strc::BasicItem* target_ptr,
+        void requestReDraw(strc::BasicNode* target_ptr,
             DrawFunction draw_func = nullptr,
             //void* draw_ex_data = nullptr,
             std::chrono::time_point<std::chrono::steady_clock> time_start = std::chrono::steady_clock::now(),
@@ -266,7 +267,7 @@ namespace lui {
         // 支持动画的新接口
         void requestAnimate(
             // --- 必选参数 ---
-            strc::BasicItem* target_ptr,    // 目标对象
+            strc::BasicNode* target_ptr,    // 目标对象
             strc::ParamIndex target_param,  // 目标对象的目标修改参数
             int32_t value_end,              // 被修改参数的终值
 
@@ -329,7 +330,7 @@ namespace lui {
             // TODO: 加入聚合参数支持
         }*/
 
-        void setCurrentPage(strc::Page* page) {
+        void setCurrentPage(strc::Easel* page) {
             current_page_ = page;
             LOG("Render target page set  --  page=0x"
                 + std::to_string(reinterpret_cast<uintptr_t>(page)));

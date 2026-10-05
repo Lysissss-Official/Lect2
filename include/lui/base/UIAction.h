@@ -16,7 +16,7 @@ namespace lui::action {
 
     // TODO: 加 namespace "strc::~"
 
-    inline bool scrollToShow(strc::Element* el, Render* re) {
+    inline bool scrollToShow(strc::CanvasNode* el, Render* re) {
         if (!el || !re) return false;
 
         auto* el_parent = el->getParent();
@@ -112,7 +112,7 @@ namespace lui::action {
         );
 
         if (auto* parent_element =
-            dynamic_cast<strc::Element*>(el->getParent())
+            dynamic_cast<strc::CanvasNode*>(el->getParent())
         ) {
             scrollToShow(parent_element, re);
         }
@@ -120,14 +120,14 @@ namespace lui::action {
         return true;
     }
 
-    inline bool moveSetFocus(strc::Page* pa, strc::Element* el, Render* re) {
+    inline bool moveSetFocus(strc::Easel* pa, strc::CanvasNode* el, Render* re) {
         if (!pa->focus) {
             return false;
         }
 
         // TODO: 如果超大元素不能完整显示，优先 Scroll 该元素而不是切换焦点
 
-        strc::Element* next = el;
+        strc::CanvasNode* next = el;
 
         if (!next) {
             return false;
@@ -141,14 +141,14 @@ namespace lui::action {
         }
     }
 
-    inline bool moveNextFocus(strc::Page* pa, strc::DirecIndex direc, Render* re) {
+    inline bool moveNextFocus(strc::Easel* pa, strc::DirecIndex direc, Render* re) {
         if (!pa->focus) {
             return false;
         }
 
         // TODO: 如果超大元素不能完整显示，优先 Scroll 该元素而不是切换焦点
 
-        strc::Element* next =
+        strc::CanvasNode* next =
             pa->focus->focus_next[static_cast<size_t>(direc)];
 
         if (!next) {

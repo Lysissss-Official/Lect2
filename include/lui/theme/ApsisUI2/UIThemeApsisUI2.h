@@ -49,7 +49,7 @@ namespace lui::theme::apsis {
         const Render::DrawContext& ctx
     ) {
         auto* element =
-            dynamic_cast<const strc::Element*>(
+            dynamic_cast<const strc::CanvasNode*>(
                 &ctx.target
             );
 
