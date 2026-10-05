@@ -27,22 +27,22 @@ private:
 
     static constexpr int32_t LOGIC_SCALE = 10000;
 
-    lui::strc::Page page_;
+    lui::strc::Easel page_;
 
-    lui::strc::Element* outer_a_ = nullptr;
-    lui::strc::Element* outer_b_ = nullptr;
-    lui::strc::Element* outer_c_ = nullptr;
-    lui::strc::Element* outer_d_ = nullptr;
+    lui::strc::CanvasNode* outer_a_ = nullptr;
+    lui::strc::CanvasNode* outer_b_ = nullptr;
+    lui::strc::CanvasNode* outer_c_ = nullptr;
+    lui::strc::CanvasNode* outer_d_ = nullptr;
 
-    lui::strc::Element* inner_a_ = nullptr;
-    lui::strc::Element* inner_b_ = nullptr;
-    lui::strc::Element* inner_c_ = nullptr;
-    lui::strc::Element* inner_d_ = nullptr;
+    lui::strc::CanvasNode* inner_a_ = nullptr;
+    lui::strc::CanvasNode* inner_b_ = nullptr;
+    lui::strc::CanvasNode* inner_c_ = nullptr;
+    lui::strc::CanvasNode* inner_d_ = nullptr;
 
-    lui::strc::Element* deep_a_ = nullptr;
-    lui::strc::Element* deep_b_ = nullptr;
-    lui::strc::Element* deep_c_ = nullptr;
-    lui::strc::Element* deep_d_ = nullptr;
+    lui::strc::CanvasNode* deep_a_ = nullptr;
+    lui::strc::CanvasNode* deep_b_ = nullptr;
+    lui::strc::CanvasNode* deep_c_ = nullptr;
+    lui::strc::CanvasNode* deep_d_ = nullptr;
 
     lui::theme::ChassisUI theme_;
 
@@ -102,7 +102,7 @@ public:
         // -----------------------------------------------------
 
         outer_a_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 500,
                     .ly1 = 300,
@@ -113,7 +113,7 @@ public:
             );
 
         outer_b_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 3500,
                     .ly1 = 300,
@@ -124,7 +124,7 @@ public:
             );
 
         outer_c_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 6500,
                     .ly1 = 300,
@@ -135,7 +135,7 @@ public:
             );
 
         outer_d_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 500,
                     .ly1 = 7000,
@@ -153,7 +153,7 @@ public:
         // -----------------------------------------------------
 
         auto* outer_container =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 500,
                     .ly1 = 1500,
@@ -168,7 +168,7 @@ public:
         // -----------------------------------------------------
 
         inner_a_ =
-            outer_container->createChild<lui::strc::Element>(
+            outer_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 500,
                     .ly1 = 300,
@@ -179,7 +179,7 @@ public:
             );
 
         inner_b_ =
-            outer_container->createChild<lui::strc::Element>(
+            outer_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 3500,
                     .ly1 = 300,
@@ -190,7 +190,7 @@ public:
             );
 
         inner_c_ =
-            outer_container->createChild<lui::strc::Element>(
+            outer_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 500,
                     .ly1 = 1800,
@@ -201,7 +201,7 @@ public:
             );
 
         inner_d_ =
-            outer_container->createChild<lui::strc::Element>(
+            outer_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 3500,
                     .ly1 = 1800,
@@ -216,7 +216,7 @@ public:
         // -----------------------------------------------------
 
         auto* inner_container =
-            outer_container->createChild<lui::strc::Element>(
+            outer_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 6500,
                     .ly1 = 300,
@@ -231,7 +231,7 @@ public:
         // -----------------------------------------------------
 
         deep_a_ =
-            inner_container->createChild<lui::strc::Element>(
+            inner_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 200,
                     .ly1 = 200,
@@ -242,7 +242,7 @@ public:
             );
 
         deep_b_ =
-            inner_container->createChild<lui::strc::Element>(
+            inner_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 200,
                     .ly1 = 1000,
@@ -253,7 +253,7 @@ public:
             );
 
         deep_c_ =
-            inner_container->createChild<lui::strc::Element>(
+            inner_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 200,
                     .ly1 = 1800,
@@ -264,7 +264,7 @@ public:
             );
 
         deep_d_ =
-            inner_container->createChild<lui::strc::Element>(
+            inner_container->createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 200,
                     .ly1 = 2600,
@@ -279,7 +279,7 @@ public:
         // 用于测试 Page 本身的滚动
         // -----------------------------------------------------
 
-        page_.createChild<lui::strc::Element>(
+        page_.createChild<lui::strc::CanvasNode>(
             lui::strc::ItemStyle {
                 .lx1 = 1000,
                 .ly1 = 8500,
@@ -289,7 +289,7 @@ public:
             }
         );
 
-        page_.createChild<lui::strc::Element>(
+        page_.createChild<lui::strc::CanvasNode>(
             lui::strc::ItemStyle {
                 .lx1 = 1000,
                 .ly1 = 10000,
@@ -299,7 +299,7 @@ public:
             }
         );
 
-        page_.createChild<lui::strc::Element>(
+        page_.createChild<lui::strc::CanvasNode>(
             lui::strc::ItemStyle {
                 .lx1 = 1000,
                 .ly1 = 11500,
@@ -309,7 +309,7 @@ public:
             }
         );
 
-        page_.createChild<lui::strc::Element>(
+        page_.createChild<lui::strc::CanvasNode>(
             lui::strc::ItemStyle {
                 .lx1 = 1000,
                 .ly1 = 13000,

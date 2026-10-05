@@ -23,12 +23,12 @@
 
 class Demo5 final : public lapp::Application {
 private:
-    lui::strc::Page page_;
+    lui::strc::Easel page_;
 
-    lui::strc::Element* element_a_ = nullptr;
-    lui::strc::Element* element_b_ = nullptr;
-    lui::strc::Element* element_c_ = nullptr;
-    lui::strc::Element* element_d_ = nullptr;
+    lui::strc::CanvasNode* element_a_ = nullptr;
+    lui::strc::CanvasNode* element_b_ = nullptr;
+    lui::strc::CanvasNode* element_c_ = nullptr;
+    lui::strc::CanvasNode* element_d_ = nullptr;
 
 
     lui::theme::ChassisUI theme_;
@@ -77,7 +77,7 @@ public:
         // ---------------------------------------------------------
 
         element_a_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 1000,
                     .ly1 = 1000,
@@ -88,7 +88,7 @@ public:
             );
 
         element_b_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 3500,
                     .ly1 = 500,
@@ -99,7 +99,7 @@ public:
             );
 
         element_c_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 7000,
                     .ly1 = 2500,
@@ -110,7 +110,7 @@ public:
             );
 
         element_d_ =
-            page_.createChild<lui::strc::Element>(
+            page_.createChild<lui::strc::CanvasNode>(
                 lui::strc::ItemStyle {
                     .lx1 = 3500,
                     .ly1 = 5500,

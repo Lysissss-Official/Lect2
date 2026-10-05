@@ -38,7 +38,7 @@ namespace lapp {
     public:
         ApplicationType type  = APP_UNKNOWN;
         std::string vm_path;                 // VM 模式的 Python 脚本路径
-        lui::strc::Page* start_page = nullptr;
+        lui::strc::Easel* start_page = nullptr;
 
         // 四项平台服务 — 由 setServices() 注入，app_setup() / app_main() 中使用
         ldevice::Screen*          screen     = nullptr;
