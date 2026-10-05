@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.1.2)
 project(ApsisUI2)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
 add_executable(ApsisUI2
@@ -50,3 +50,13 @@ target_link_libraries(ApsisUI2
 #set_target_properties(ApsisUI2 PROPERTIES WIN32_EXECUTABLE TRUE)
 
 target_link_options(ApsisUI2 PRIVATE -static)
+
+# ===== TEST =====
+add_executable(HTMLParserTest
+        test/HTMLParserTest.cpp
+)
+
+target_include_directories(HTMLParserTest PRIVATE
+        .
+        include
+)
